@@ -1,5 +1,7 @@
 package br.edu.biblioteca.model;
 
+import br.edu.biblioteca.service.GeradorIdService;
+
 public class Categoria {
     private Long id;
     private String nome;
@@ -7,8 +9,8 @@ public class Categoria {
     public Categoria() {
     }
 
-    public Categoria(Long id, String nome) {
-        this.id = id;
+    public Categoria(String nome) {
+        this.id = GeradorIdService.categoriaId();
         this.nome = nome;
     }
 

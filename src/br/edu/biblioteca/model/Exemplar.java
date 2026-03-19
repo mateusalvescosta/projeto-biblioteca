@@ -1,6 +1,9 @@
 package br.edu.biblioteca.model;
 
+import br.edu.biblioteca.service.GeradorIdService;
 import br.edu.biblioteca.service.StatusExemplar;
+
+import static br.edu.biblioteca.service.StatusExemplar.DISPONIVEL;
 
 public class Exemplar {
     private Long id;
@@ -10,10 +13,10 @@ public class Exemplar {
     public Exemplar() {
     }
 
-    public Exemplar(Long id, String isbnLivro, StatusExemplar status) {
-        this.id = id;
+    public Exemplar(String isbnLivro) {
+        this.id = GeradorIdService.exemplarId();
         this.isbnLivro = isbnLivro;
-        this.status = status;
+        this.status = DISPONIVEL;
     }
 
     public Long getId() {

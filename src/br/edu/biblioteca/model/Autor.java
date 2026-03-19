@@ -1,5 +1,7 @@
 package br.edu.biblioteca.model;
 
+import br.edu.biblioteca.service.GeradorIdService;
+
 public class Autor {
     private Long id;
     private String nome;
@@ -7,8 +9,8 @@ public class Autor {
     public Autor() {
     }
 
-    public Autor(Long id, String nome) {
-        this.id = id;
+    public Autor(String nome) {
+        this.id = GeradorIdService.autorId();
         this.nome = nome;
     }
 
