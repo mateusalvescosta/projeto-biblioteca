@@ -72,12 +72,14 @@ public final class UsuarioMenu {
         String email = this.lerTexto("Informe o e-mail: ");
         String senha = this.lerTexto("Informe senha: ");
         String tipo = this.lerTexto("Informe o tipo (ALUNO, PROFESSOR, SERVIDOR): ");
-        UsuarioTipoEnum stn = UsuarioTipoEnum.ALUNO;
+        UsuarioTipoEnum stn;
         if(tipo.toLowerCase().equals("professor"))
             stn = UsuarioTipoEnum.PROFESSOR;
         else if(tipo.toLowerCase().equals("servidor")) 
             stn = UsuarioTipoEnum.SERVIDOR;
-        Usuario item = new Usuario(null, nome, stn, email, senha);
+        else
+            stn = UsuarioTipoEnum.ALUNO;
+        Usuario item = new Usuario(null, nome,email, senha, stn);
         usuarioService.inserir(item);
     }
 

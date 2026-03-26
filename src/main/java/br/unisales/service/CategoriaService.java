@@ -16,7 +16,7 @@ public class CategoriaService {
     }
 
     public void inserir(Categoria categoria) {
-        categoria.setId(this.getNextId() + 1);
+        categoria.setId(Long.valueOf(this.getNextId() + 1));
 
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();

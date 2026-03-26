@@ -16,7 +16,7 @@ public class UsuarioService {
     }
 
     public void inserir(Usuario usuario) {
-        usuario.setId(this.getNextId() + 1);
+        usuario.setId(Long.valueOf(this.getNextId() + 1));
 
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
