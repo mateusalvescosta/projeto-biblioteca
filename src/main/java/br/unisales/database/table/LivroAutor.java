@@ -1,6 +1,6 @@
 package br.unisales.database.table;
 
-import br.unisales.database.table.primery_key.LivroCategoriaId;
+import br.unisales.database.table.primery_key.LivroAutorId;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -20,21 +20,22 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "livro_categoria")
-public class LivroCategoria {
+@Table(name = "livro_autor")
+public class LivroAutor {
     @EmbeddedId
-    private LivroCategoriaId id;
+    private LivroAutorId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("livroIsbn")
     @JoinColumn(name = "livro_isbn")
     private Livro livro;
-
+    
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("categoriaId")
-    @JoinColumn(name = "categoria_id")
-    private Categoria categoria;
-
+    @MapsId("autorId")
+    @JoinColumn(name = "autor_id")
+    private Autor autor;
+    
+    
     @Column(name = "ativo", nullable = false)
     private Boolean ativo;
 

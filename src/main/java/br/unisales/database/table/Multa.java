@@ -1,38 +1,43 @@
 package br.unisales.database.table;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Builder.Default;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "categoria")
-public class Categoria {
+@Table(name = "multa")
+public class Multa {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
+    
+    @Column(name = "emprestimo_id", nullable = false)
+    private Long emprestimoId;
 
-    @Column(name = "nome", nullable = false, length = 100, unique = true)
-    private String nome;
+    @Column(name = "valor", nullable = false)
+    private Double valor;
 
-    @Default
-    @OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<LivroCategoria> livroCategorias = new ArrayList<>();
+    @Column(name = "dias_atraso", nullable = false)
+    private int diasAtraso;
+
+    @Column(name = "quitada", nullable = false)
+    private Boolean quitada;
+
+    @PrePersist
+    public void prePersist() {
+            this.quitada = Boolean.FALSE;
+    }
 }

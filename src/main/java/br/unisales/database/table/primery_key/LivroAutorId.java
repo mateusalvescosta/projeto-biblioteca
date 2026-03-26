@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class LivroCategoriaId implements Serializable {
+public class LivroAutorId implements Serializable {
     @Column(name = "livro_isbn", length = 20)
     private String livroIsbn;
     
-    @Column(name = "categoria_id")
-    private Long categoriaId;
+    @Column(name = "autor_id")
+    private Long autorId;
 }
