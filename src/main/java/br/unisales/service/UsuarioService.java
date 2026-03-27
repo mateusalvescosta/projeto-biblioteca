@@ -110,17 +110,17 @@ public class UsuarioService {
         }
     }
 
-    private Integer getNextId() {
+    private Long getNextId() {
         EntityManager em = this.entityManagerFactory.createEntityManager();
         try {
-            Integer maxId = em.createQuery(
+            Long maxId = em.createQuery(
                     "SELECT MAX(u.id) FROM Usuario u",
-                    Integer.class
+                    Long.class
             ).getSingleResult();
             return maxId != null ? maxId : 0;
         } catch (Exception e) {
             System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return 1;
+            return (long) 1;
         } finally {
             em.close();
         }
