@@ -15,8 +15,16 @@ public class UsuarioService {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    public void inserir(Usuario usuario) {
-        usuario.setId(Long.valueOf(this.getNextId() + 1));
+    /**
+     * Cadastra um novo usuário no sistema.
+     * O ID é gerado automaticamente com base no maior ID existente + 1.
+     * O campo 'bloqueado' é inicializado como false.
+     *
+     * @param usuario Objeto Usuario a ser persistido (sem ID definido).
+     */
+    public void cadastrarUsuario(Usuario usuario) {
+        usuario.setId(this.getNextId() + 1);
+        usuario.setBloqueado(Boolean.FALSE);
 
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
@@ -25,7 +33,7 @@ public class UsuarioService {
             transaction.begin();
             entityManager.persist(usuario);
             transaction.commit();
-            System.out.println("Usuario inserido com sucesso.");
+            System.out.println("Usuário cadastrado com sucesso.");
         } catch (Exception e) {
             if (transaction.isActive()) {
                 transaction.rollback();
@@ -36,80 +44,89 @@ public class UsuarioService {
                 causa = causa.getCause();
             }
 
-            System.out.println("Erro ao inserir usuario: " + causa.getMessage());
+            System.out.println("Erro ao cadastrar usuário: " + causa.getMessage());
         } finally {
             entityManager.close();
         }
     }
 
-    public List<Usuario> listarTodos() {
+    /**
+     * Alterna o estado de bloqueio de um usuário.
+     * Se estiver ativo, bloqueia. Se estiver bloqueado, desbloqueia.
+     *
+     * @param id ID do usuário a ser bloqueado ou desbloqueado.
+     */
+    public void bloquearDesbloquear(Long id) {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+        EntityTransaction transaction = entityManager.getTransaction();
+
+        try {
+            Usuario usuario = entityManager.find(Usuario.class, id);
+
+            if (usuario == null) {
+                System.out.println("Usuário não encontrado.");
+                return;
+            }
+
+            boolean novoStatus = !Boolean.TRUE.equals(usuario.getBloqueado());
+            usuario.setBloqueado(novoStatus);
+
+            transaction.begin();
+            entityManager.merge(usuario);
+            transaction.commit();
+
+            String acao = novoStatus ? "bloqueado" : "desbloqueado";
+            System.out.println("Usuário " + acao + " com sucesso.");
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            System.out.println("Erro ao alterar status do usuário: " + e.getMessage());
+        } finally {
+            entityManager.close();
+        }
+    }
+
+    /**
+     * Lista todos os usuários cadastrados, ordenados por ID.
+     *
+     * @return Lista de todos os usuários.
+     */
+    public List<Usuario> listar() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
             return entityManager
                     .createQuery("SELECT u FROM Usuario u ORDER BY u.id", Usuario.class)
                     .getResultList();
         } catch (Exception e) {
-            System.out.println("Erro ao listar usuarios: " + e.getMessage());
+            System.out.println("Erro ao listar usuários: " + e.getMessage());
             return List.of();
         } finally {
             entityManager.close();
         }
     }
 
-    public Usuario buscarPorId(Integer id) {
+    /**
+     * Busca um usuário pelo ID.
+     *
+     * @param id ID do usuário.
+     * @return O usuário encontrado ou null se não existir.
+     */
+    public Usuario buscarPorId(Long id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
             return entityManager.find(Usuario.class, id);
         } catch (Exception e) {
-            System.out.println("Erro ao buscar usuario por ID: " + e.getMessage());
+            System.out.println("Erro ao buscar usuário por ID: " + e.getMessage());
             return null;
         } finally {
             entityManager.close();
         }
     }
 
-    public void atualizar(Usuario usuario) {
-        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
-        EntityTransaction transaction = entityManager.getTransaction();
-        try {
-            transaction.begin();
-            entityManager.merge(usuario);
-            transaction.commit();
-            System.out.println("Usuario atualizado com sucesso.");
-        } catch (Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-            System.out.println("Erro ao atualizar usuario: " + e.getMessage());
-        } finally {
-            entityManager.close();
-        }
-    }
-
-    public void deletar(Integer id) {
-        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
-        EntityTransaction transaction = entityManager.getTransaction();
-        try {
-            Usuario usuario = entityManager.find(Usuario.class, id);
-            if (usuario == null) {
-                System.out.println("Usuario nao encontrado para exclusao.");
-                return;
-            }
-
-            transaction.begin();
-            entityManager.remove(usuario);
-            transaction.commit();
-            System.out.println("Usuario removido com sucesso.");
-        } catch (Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-            System.out.println("Erro ao remover usuario: " + e.getMessage());
-        } finally {
-            entityManager.close();
-        }
-    }
-
+    /**
+     * Retorna o próximo ID disponível baseado no maior ID existente na tabela.
+     */
     private Long getNextId() {
         EntityManager em = this.entityManagerFactory.createEntityManager();
         try {
@@ -117,10 +134,10 @@ public class UsuarioService {
                     "SELECT MAX(u.id) FROM Usuario u",
                     Long.class
             ).getSingleResult();
-            return maxId != null ? maxId : 0;
+            return maxId != null ? maxId : 0L;
         } catch (Exception e) {
             System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return (long) 1;
+            return 0L;
         } finally {
             em.close();
         }
