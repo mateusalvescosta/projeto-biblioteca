@@ -1,5 +1,6 @@
 package br.unisales;
 
+import br.unisales.menu.CatalogoMenu;
 import br.unisales.menu.CategoriaMenu;
 import br.unisales.menu.UsuarioMenu;
 import br.unisales.menu.util.MenuUtil;
@@ -30,6 +31,7 @@ public class Main {
             switch (opcao) {
                 case 1 -> menuCategoria();
                 case 2 -> menuUsuario();
+                case 3 -> menuCatalogo();
                 case 0 -> System.out.println("Encerrando o sistema...");
                 default -> System.out.println("Opcao invalida. Tente novamente.");
             }
@@ -53,6 +55,7 @@ public class Main {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Categoria");
         System.out.println("2 - Usuário");
+        System.out.println("3 - Catálogo");
         System.out.println("0 - Sair");
         System.out.println("-------------------------------------");
     }
@@ -65,6 +68,11 @@ public class Main {
     private static void menuUsuario() {
         MenuUtil.limparConsole();
         new UsuarioMenu(scanner);
+    }
+
+    private static void menuCatalogo() {
+        MenuUtil.limparConsole();
+        new CatalogoMenu(scanner);
     }
 
     private static Integer lerInteiro(String mensagem) {

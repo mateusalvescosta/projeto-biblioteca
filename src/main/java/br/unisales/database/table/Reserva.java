@@ -46,3 +46,5 @@ public class Reserva {
             this.status = StatusExemplarEnum.RESERVADO;
     }
 }
+
+
