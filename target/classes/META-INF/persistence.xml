@@ -30,9 +30,15 @@
         <class>br.unisales.database.table.Autor</class>
         <class>br.unisales.database.table.Categoria</class>
         <class>br.unisales.database.table.Livro</class>
+        <class>br.unisales.database.table.LivroAutor</class>
         <class>br.unisales.database.table.LivroCategoria</class>
         <class>br.unisales.database.table.Usuario</class>
-        
+        <class>br.unisales.database.table.Multa</class>
+        <class>br.unisales.database.table.Notificacao</class>
+        <class>br.unisales.database.table.Reserva</class>
+        <class>br.unisales.database.table.Emprestimo</class>
+        <class>br.unisales.database.table.Exemplar</class>
+
         <properties>
             <property name="jakarta.persistence.jdbc.driver" value="org.sqlite.JDBC"/>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:sqlite:./dados/biblioteca_db.db"/>
