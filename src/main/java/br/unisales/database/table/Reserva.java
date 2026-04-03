@@ -45,12 +45,6 @@ public class Reserva {
             this.dataReserva = LocalDateTime.parse(DataService.data());
             this.status = StatusExemplarEnum.RESERVADO;
     }
-
-    public void adiciona(Livro livro){
-        livro.setTotalemprestimos(livro.getTotalemprestimos()+1);
-    }
-    
-
 }
 
 

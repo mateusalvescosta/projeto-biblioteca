@@ -40,11 +40,4 @@ public class Livro {
     @Default
     @OneToMany(mappedBy = "livro", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LivroAutor> livroAutores = new ArrayList<>();
-
-    @Default
-    @Column(name = "total Emprestimos", nullable=false)
-    private int totalemprestimos;
-
-
-
 }
