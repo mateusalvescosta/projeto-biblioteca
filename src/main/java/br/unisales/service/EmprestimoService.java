@@ -1,6 +1,5 @@
 package br.unisales.service;
 import br.unisales.database.table.Emprestimo;
-import br.unisales.database.table.Exemplar;
 
 import java.util.ArrayList;
 import java.time.LocalDateTime;
