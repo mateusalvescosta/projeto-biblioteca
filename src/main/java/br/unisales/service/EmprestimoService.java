@@ -22,7 +22,7 @@ public class EmprestimoService {
         try {
             transaction.begin();
             
-            Exemplar exemplar = entityManager.find(Exemplar.class, emprestimo.getExemplarId());
+            Exemplar exemplar = entityManager.find(Exemplar.class, emprestimo.getExemplar().getId());
             if (exemplar == null) {
                 transaction.rollback();
                 System.out.println("Exemplar não encontrado.");
@@ -79,7 +79,7 @@ public class EmprestimoService {
                 return;   
             }
 
-            Exemplar exemplar = entityManager.find(Exemplar.class, emprestimo.getExemplarId());
+            Exemplar exemplar = entityManager.find(Exemplar.class, emprestimo.getExemplar().getId());
             if (exemplar == null) {
                 transaction.rollback();
                 System.out.println("Exemplar não encontrado.");
