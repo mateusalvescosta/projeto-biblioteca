@@ -18,9 +18,9 @@ public class RelatorioService {
 
         try {
             List<Object[]> resultado = entityManager.createQuery(
-                    "SELECT titulo l, COUNT(e) " +
+                    "SELECT l.titulo, COUNT(e) " +
                             "FROM Emprestimo e " +
-                            "JOIN Exemplar ex ON e.exemplarId = ex.id " +
+                            "JOIN e.exemplar ex " +
                             "JOIN ex.livro l " +
                             "GROUP BY l.titulo " +
                             "ORDER BY COUNT(e) DESC",
@@ -53,6 +53,46 @@ public class RelatorioService {
             entityManager.close();
         }
 
+    }
+
+    public void emAtraso() {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+
+        try {
+            List<Object[]> resultado = entityManager.createQuery(
+                    "SELECT u.nome, l.titulo " +
+                            "FROM Emprestimo e " +
+                            "JOIN e.usuario u " +
+                            "JOIN e.exemplar ex " +
+                            "JOIN ex.livro l " +
+                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < CURRENT_DATE " +
+                            "ORDER BY u.nome",
+                    Object[].class)
+                    .setMaxResults(10)
+                    .getResultList();
+
+            if (resultado.isEmpty()) {
+                System.out.println("Nenhum cliente com empréstimos em atraso.");
+                return;
+            }
+
+            System.out.println("=== EMPRÉSTIMOS EM ATRASO ===");
+            for (Object[] linha : resultado) {
+                System.out.println("Usuário: " + linha[0] + " | Livro: " + linha[1]);
+            }
+
+        }
+
+        catch (Exception e) {
+            Throwable causa = e;
+            while (causa.getCause() != null)
+                causa = causa.getCause();
+            System.out.println("Erro ao gerar relatório de atrasos: " + causa.getMessage());
+        }
+
+        finally {
+            entityManager.close();
+        }
     }
 
 }
