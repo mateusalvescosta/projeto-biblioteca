@@ -3,7 +3,6 @@ package br.unisales.database.table;
 import java.time.LocalDateTime;
 
 import br.unisales.Enumeration.StatusEmprestimoEnum;
-import br.unisales.service.DataService;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -17,6 +16,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 
 @Data
 @NoArgsConstructor
@@ -26,17 +27,17 @@ import lombok.NoArgsConstructor;
 @Table(name = "emprestimo")
 public class Emprestimo {
     @Id
-    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "usuario_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
     
     @ManyToOne
     @JoinColumn(name = "exemplar_id", nullable = false)
     private Exemplar exemplar;
     
-    @ManyToOne
     @JoinColumn(name = "data_emprestimo", nullable = false)
     private LocalDateTime dataEmprestimo;
     
@@ -52,7 +53,7 @@ public class Emprestimo {
 
     @PrePersist
     public void prePersist() {
-            this.dataEmprestimo = LocalDateTime.parse(DataService.data());
+            this.dataEmprestimo = LocalDateTime.now();
             this.dataDevolucaoPrevista = this.dataEmprestimo.plusDays(15);
             this.status = StatusEmprestimoEnum.ATIVO;
     }
