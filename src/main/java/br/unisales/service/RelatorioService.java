@@ -1,6 +1,7 @@
 package br.unisales.service;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import jakarta.persistence.EntityManager;
@@ -92,6 +93,40 @@ public class RelatorioService {
         }
 
         finally {
+            entityManager.close();
+        }
+    }
+
+    public void usuariosComMaisAtrasos() {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+
+        try {
+            List<Object[]> resultado = entityManager.createQuery(
+                    "SELECT u.nome, l.titulo, e.dataDevolucaoPrevista " +
+                            "FROM Emprestimo e " +
+                            "JOIN e.usuario u " +
+                            "JOIN e.exemplar ex " +
+                            "JOIN ex.livro l " +
+                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < CURRENT_DATE " +
+                            "ORDER BY e.dataDevolucaoPrevista ASC",
+                    Object[].class)
+                    .getResultList();
+
+            if (resultado.isEmpty()) {
+                System.out.println("Nenhum usuário com atrasos registrados.");
+                return;
+            }
+
+            System.out.println("=== USUÁRIOS COM MAIS ATRASOS ===");
+            for (Object[] linha : resultado) {
+                LocalDate dataPrevista = (LocalDate) linha[2];
+                long dias = ChronoUnit.DAYS.between(dataPrevista, LocalDate.now());
+                System.out.println("Usuário: " + linha[0] + " | Livro: " + linha[1] + " | Dias em atraso: " + dias);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Erro: " + e.getMessage());
+        } finally {
             entityManager.close();
         }
     }
