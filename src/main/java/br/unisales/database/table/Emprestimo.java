@@ -38,7 +38,7 @@ public class Emprestimo {
     @JoinColumn(name = "exemplar_id", nullable = false)
     private Exemplar exemplar;
     
-    @JoinColumn(name = "data_emprestimo", nullable = false)
+    @Column(name = "data_emprestimo", nullable = false)
     private LocalDateTime dataEmprestimo;
     
     @Column(name = "data_devolucao_prevista", nullable = false)
