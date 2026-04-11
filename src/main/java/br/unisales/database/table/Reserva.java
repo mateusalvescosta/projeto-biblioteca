@@ -3,7 +3,6 @@ package br.unisales.database.table;
 import java.time.LocalDateTime;
 
 import br.unisales.Enumeration.StatusExemplarEnum;
-import br.unisales.service.DataService;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -42,7 +41,7 @@ public class Reserva {
 
     @PrePersist
     public void prePersist() {
-            this.dataReserva = LocalDateTime.parse(DataService.data());
+            this.dataReserva = LocalDateTime.now();
             this.status = StatusExemplarEnum.RESERVADO;
     }
 }

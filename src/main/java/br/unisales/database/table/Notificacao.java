@@ -4,7 +4,7 @@ package br.unisales.database.table;
 
 import java.time.LocalDateTime;
 
-import br.unisales.service.DataService;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -40,7 +40,7 @@ public class Notificacao {
 
     @PrePersist
     public void prePersist() {
-            this.dataCriacao = LocalDateTime.parse(DataService.data());
+            this.dataCriacao = LocalDateTime.now();
             this.lida = Boolean.FALSE;
     }
 }

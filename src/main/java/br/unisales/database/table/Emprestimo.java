@@ -3,7 +3,6 @@ package br.unisales.database.table;
 import java.time.LocalDateTime;
 
 import br.unisales.Enumeration.StatusEmprestimoEnum;
-import br.unisales.service.DataService;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -52,7 +51,7 @@ public class Emprestimo {
 
     @PrePersist
     public void prePersist() {
-            this.dataEmprestimo = LocalDateTime.parse(DataService.data());
+            this.dataEmprestimo = LocalDateTime.now();
             this.dataDevolucaoPrevista = this.dataEmprestimo.plusDays(15);
             this.status = StatusEmprestimoEnum.ATIVO;
     }
