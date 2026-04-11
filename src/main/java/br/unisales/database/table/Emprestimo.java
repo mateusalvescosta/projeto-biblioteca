@@ -16,6 +16,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 
 @Data
 @NoArgsConstructor
@@ -25,18 +27,18 @@ import lombok.NoArgsConstructor;
 @Table(name = "emprestimo")
 public class Emprestimo {
     @Id
-    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "usuario_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
     
     @ManyToOne
     @JoinColumn(name = "exemplar_id", nullable = false)
     private Exemplar exemplar;
     
-    @ManyToOne
-    @JoinColumn(name = "data_emprestimo", nullable = false)
+    @Column(name = "data_emprestimo", nullable = false)
     private LocalDateTime dataEmprestimo;
     
     @Column(name = "data_devolucao_prevista", nullable = false)

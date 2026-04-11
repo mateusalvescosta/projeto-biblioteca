@@ -2,6 +2,7 @@ package br.unisales;
 
 import br.unisales.menu.CatalogoMenu;
 import br.unisales.menu.CategoriaMenu;
+import br.unisales.menu.EmprestimoMenu;
 import br.unisales.menu.UsuarioMenu;
 import br.unisales.menu.util.MenuUtil;
 
@@ -15,7 +16,6 @@ public class Main {
     private static Scanner scanner;
 
     public static void main(String[] args) {
-        //MenuUtil.configurarConsoleUtf8();
         configurarLogs();
         scanner = new Scanner(System.in, StandardCharsets.UTF_8);
 
@@ -32,6 +32,7 @@ public class Main {
                 case 1 -> menuCategoria();
                 case 2 -> menuUsuario();
                 case 3 -> menuCatalogo();
+                case 4 -> menuEmprestimo();  // novo
                 case 0 -> System.out.println("Encerrando o sistema...");
                 default -> System.out.println("Opcao invalida. Tente novamente.");
             }
@@ -56,6 +57,7 @@ public class Main {
         System.out.println("1 - Categoria");
         System.out.println("2 - Usuário");
         System.out.println("3 - Catálogo");
+        System.out.println("4 - Empréstimos");  // novo
         System.out.println("0 - Sair");
         System.out.println("-------------------------------------");
     }
@@ -73,6 +75,11 @@ public class Main {
     private static void menuCatalogo() {
         MenuUtil.limparConsole();
         new CatalogoMenu(scanner);
+    }
+
+    private static void menuEmprestimo() {  // novo
+        MenuUtil.limparConsole();
+        new EmprestimoMenu(scanner);
     }
 
     private static Integer lerInteiro(String mensagem) {
