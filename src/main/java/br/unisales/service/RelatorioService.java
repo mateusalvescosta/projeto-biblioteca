@@ -1,9 +1,13 @@
 package br.unisales.service;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
+import java.util.List;
+import java.util.Locale;
+
+import br.unisales.database.table.Emprestimo;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 
@@ -67,9 +71,10 @@ public class RelatorioService {
                             "JOIN e.usuario u " +
                             "JOIN e.exemplar ex " +
                             "JOIN ex.livro l " +
-                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < CURRENT_DATE " +
+                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < :hoje " +
                             "ORDER BY u.nome",
                     Object[].class)
+                    .setParameter("hoje", LocalDateTime.now())
                     .setMaxResults(10)
                     .getResultList();
 
@@ -102,14 +107,14 @@ public class RelatorioService {
 
         try {
             List<Object[]> resultado = entityManager.createQuery(
-                    "SELECT u.nome, l.titulo, e.dataDevolucaoPrevista " +
+                    "SELECT u.nome, COUNT(e) " +
                             "FROM Emprestimo e " +
                             "JOIN e.usuario u " +
-                            "JOIN e.exemplar ex " +
-                            "JOIN ex.livro l " +
-                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < CURRENT_DATE " +
-                            "ORDER BY e.dataDevolucaoPrevista ASC",
+                            "WHERE e.dataDevolucao IS NULL AND e.dataDevolucaoPrevista < :hoje " +
+                            "GROUP BY u.nome " +
+                            "ORDER BY COUNT(e) DESC",
                     Object[].class)
+                    .setParameter("hoje", LocalDateTime.now())
                     .getResultList();
 
             if (resultado.isEmpty()) {
@@ -119,13 +124,14 @@ public class RelatorioService {
 
             System.out.println("=== USUÁRIOS COM MAIS ATRASOS ===");
             for (Object[] linha : resultado) {
-                LocalDate dataPrevista = (LocalDate) linha[2];
-                long dias = ChronoUnit.DAYS.between(dataPrevista, LocalDate.now());
-                System.out.println("Usuário: " + linha[0] + " | Livro: " + linha[1] + " | Dias em atraso: " + dias);
+                System.out.println("Usuário: " + linha[0] + " | Atrasos: " + linha[1]);
             }
 
         } catch (Exception e) {
-            System.out.println("Erro: " + e.getMessage());
+            Throwable causa = e;
+            while (causa.getCause() != null)
+                causa = causa.getCause();
+            System.out.println("Erro ao gerar relatório de atrasos: " + causa.getMessage());
         } finally {
             entityManager.close();
         }
@@ -139,95 +145,77 @@ public class RelatorioService {
             int mesAtual = agora.getMonthValue();
             int anoAtual = agora.getYear();
 
-            // Consulta empréstimos do mês atual
-            Long totalEmprestimos = entityManager.createQuery(
-                    "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE YEAR(e.dataEmprestimo) = :ano " +
-                            "AND MONTH(e.dataEmprestimo) = :mes",
-                    Long.class)
-                    .setParameter("ano", anoAtual)
-                    .setParameter("mes", mesAtual)
-                    .getSingleResult();
+            // Busca todos os empréstimos e filtra em Java
+            List<Emprestimo> todos = entityManager
+                    .createQuery("SELECT e FROM Emprestimo e", Emprestimo.class)
+                    .getResultList();
 
-            // Consulta devoluções do mês atual
-            Long totalDevolucoes = entityManager.createQuery(
-                    "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE YEAR(e.dataDevolucao) = :ano " +
-                            "AND MONTH(e.dataDevolucao) = :mes " +
-                            "AND e.dataDevolucao IS NOT NULL",
-                    Long.class)
-                    .setParameter("ano", anoAtual)
-                    .setParameter("mes", mesAtual)
-                    .getSingleResult();
+            long totalEmprestimos = todos.stream()
+                    .filter(e -> e.getDataEmprestimo() != null
+                            && e.getDataEmprestimo().getMonthValue() == mesAtual
+                            && e.getDataEmprestimo().getYear() == anoAtual)
+                    .count();
 
-            // Empréstimos ativos (feitos no mês mas ainda não devolvidos)
-            Long emprestimosAtivos = entityManager.createQuery(
-                    "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE YEAR(e.dataEmprestimo) = :ano " +
-                            "AND MONTH(e.dataEmprestimo) = :mes " +
-                            "AND e.dataDevolucao IS NULL",
-                    Long.class)
-                    .setParameter("ano", anoAtual)
-                    .setParameter("mes", mesAtual)
-                    .getSingleResult();
+            long totalDevolucoes = todos.stream()
+                    .filter(e -> e.getDataDevolucao() != null
+                            && e.getDataDevolucao().getMonthValue() == mesAtual
+                            && e.getDataDevolucao().getYear() == anoAtual)
+                    .count();
+
+            long emprestimosAtivos = todos.stream()
+                    .filter(e -> e.getDataEmprestimo() != null
+                            && e.getDataEmprestimo().getMonthValue() == mesAtual
+                            && e.getDataEmprestimo().getYear() == anoAtual
+                            && e.getDataDevolucao() == null)
+                    .count();
 
             // Total de livros cadastrados no sistema
             Long totalLivros = entityManager.createQuery(
-                    "SELECT COUNT(l) FROM Livro l",
-                    Long.class)
+                    "SELECT COUNT(l) FROM Livro l", Long.class)
                     .getSingleResult();
 
             // Total de exemplares cadastrados
             Long totalExemplares = entityManager.createQuery(
-                    "SELECT COUNT(ex) FROM Exemplar ex",
-                    Long.class)
+                    "SELECT COUNT(ex) FROM Exemplar ex", Long.class)
                     .getSingleResult();
 
             // Exemplares disponíveis
             Long exemplaresDisponiveis = entityManager.createQuery(
-                    "SELECT COUNT(ex) FROM Exemplar ex WHERE ex.status = 'DISPONIVEL'",
-                    Long.class)
+                    "SELECT COUNT(ex) FROM Exemplar ex WHERE ex.status = 'DISPONIVEL'", Long.class)
                     .getSingleResult();
 
             // Total de usuários cadastrados
             Long totalUsuarios = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u", Long.class)
                     .getSingleResult();
 
             // Usuários por tipo
             Long totalAlunos = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'ALUNO'",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'ALUNO'", Long.class)
                     .getSingleResult();
 
             Long totalProfessores = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'PROFESSOR'",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'PROFESSOR'", Long.class)
                     .getSingleResult();
 
             Long totalServidores = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'SERVIDOR'",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'SERVIDOR'", Long.class)
                     .getSingleResult();
 
             // Usuários bloqueados por tipo
             Long alunosBloqueados = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'ALUNO' AND u.bloqueado = true",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'ALUNO' AND u.bloqueado = true", Long.class)
                     .getSingleResult();
 
             Long professoresBloqueados = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'PROFESSOR' AND u.bloqueado = true",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'PROFESSOR' AND u.bloqueado = true", Long.class)
                     .getSingleResult();
 
             Long servidoresBloqueados = entityManager.createQuery(
-                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'SERVIDOR' AND u.bloqueado = true",
-                    Long.class)
+                    "SELECT COUNT(u) FROM Usuario u WHERE u.tipo = 'SERVIDOR' AND u.bloqueado = true", Long.class)
                     .getSingleResult();
 
-            String mesNome = obterNomeMes(mesAtual);
+            String mesNome = agora.format(DateTimeFormatter.ofPattern("MMMM", new Locale("pt", "BR")));
 
             System.out.println("=== ESTATÍSTICAS DO SISTEMA - " + mesNome.toUpperCase() + "/" + anoAtual + " ===");
             System.out.println();
@@ -255,16 +243,6 @@ public class RelatorioService {
         } finally {
             entityManager.close();
         }
-
-    }
-
-    private String obterNomeMes(int mes) {
-        String[] meses = {
-                "Janeiro", "Fevereiro", "Março", "Abril",
-                "Maio", "Junho", "Julho", "Agosto",
-                "Setembro", "Outubro", "Novembro", "Dezembro"
-        };
-        return meses[mes - 1];
     }
 
 }
