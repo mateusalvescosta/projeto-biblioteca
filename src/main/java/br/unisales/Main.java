@@ -3,6 +3,9 @@ package br.unisales;
 import br.unisales.menu.CatalogoMenu;
 import br.unisales.menu.CategoriaMenu;
 import br.unisales.menu.EmprestimoMenu;
+import br.unisales.menu.RelatorioMenu;
+import br.unisales.menu.ReservaMenu;
+import br.unisales.menu.UndoRedoMenu;
 import br.unisales.menu.UsuarioMenu;
 import br.unisales.menu.util.MenuUtil;
 
@@ -26,13 +29,16 @@ public class Main {
 
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opcao: ");
+            opcao = LerInteiro("Escolha uma opcao: ");
 
             switch (opcao) {
                 case 1 -> menuCategoria();
                 case 2 -> menuUsuario();
                 case 3 -> menuCatalogo();
-                case 4 -> menuEmprestimo();  // novo
+                case 4 -> menuEmprestimo();
+                case 5 -> menuReserva();
+                case 6 -> menuRelatorio();
+                case 7 -> menuUndoRedo();
                 case 0 -> System.out.println("Encerrando o sistema...");
                 default -> System.out.println("Opcao invalida. Tente novamente.");
             }
@@ -57,7 +63,10 @@ public class Main {
         System.out.println("1 - Categoria");
         System.out.println("2 - Usuário");
         System.out.println("3 - Catálogo");
-        System.out.println("4 - Empréstimos");  // novo
+        System.out.println("4 - Empréstimos");
+        System.out.println("5 - Reservas");
+        System.out.println("6 - Relatórios");
+        System.out.println("7 - Undo/Redo");
         System.out.println("0 - Sair");
         System.out.println("-------------------------------------");
     }
@@ -77,12 +86,27 @@ public class Main {
         new CatalogoMenu(scanner);
     }
 
-    private static void menuEmprestimo() {  // novo
+    private static void menuEmprestimo() {
         MenuUtil.limparConsole();
         new EmprestimoMenu(scanner);
     }
 
-    private static Integer lerInteiro(String mensagem) {
+    private static void menuReserva() {
+        MenuUtil.limparConsole();
+        new ReservaMenu(scanner);
+    }
+
+    private static void menuRelatorio() {
+        MenuUtil.limparConsole();
+        new RelatorioMenu(scanner);
+    }
+
+    private static void menuUndoRedo() {
+        MenuUtil.limparConsole();
+        new UndoRedoMenu(scanner);
+    }
+
+    private static Integer LerInteiro(String mensagem) {
         while (true) {
             try {
                 System.out.print(mensagem);
