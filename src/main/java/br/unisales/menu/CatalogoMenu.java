@@ -63,16 +63,19 @@ public final class CatalogoMenu {
         System.out.println("=== CADASTRAR LIVRO ===");
         String isbn = lerTexto("Informe o ISBN: ");
         String titulo = lerTexto("Informe o título: ");
-        String anoStr = lerTexto("Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
+        String recebeAno = lerTexto("Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
 
         LocalDate ano = null;
-        if (!anoStr.isBlank()) {
+        if (!recebeAno.isBlank()) {
             try {
-                ano = LocalDate.parse(anoStr);
+                ano = LocalDate.parse(recebeAno);
             } catch (Exception e) {
                 System.out.println("Data inválida, o campo ano será ignorado.");
             }
         }
+
+        String nomeAutor = lerTexto("Informe o nome do autor: ");
+        String nomeCategoria = lerTexto("Informe o nome da categoria: ");
 
         Livro livro = Livro.builder()
                 .isbn(isbn)
@@ -80,7 +83,7 @@ public final class CatalogoMenu {
                 .ano(ano)
                 .build();
 
-        catalogoService.cadastrarLivro(livro);
+        catalogoService.cadastrarLivro(livro, nomeAutor, nomeCategoria);
     }
 
     private void cadastrarExemplar(CatalogoService catalogoService) {
@@ -199,6 +202,19 @@ public final class CatalogoMenu {
         System.out.println("ISBN:   " + livro.getIsbn());
         System.out.println("Título: " + livro.getTitulo());
         System.out.println("Ano:    " + (livro.getAno() != null ? livro.getAno() : "Não informado"));
+
+        if (livro.getLivroAutores() != null && !livro.getLivroAutores().isEmpty()) {
+            livro.getLivroAutores().forEach(la -> System.out.println("Autor:     " + la.getAutor().getNome()));
+        } else {
+            System.out.println("Autor:     Não informado");
+        }
+
+        if (livro.getLivroCategorias() != null && !livro.getLivroCategorias().isEmpty()) {
+            livro.getLivroCategorias().forEach(lc -> System.out.println("Categoria: " + lc.getCategoria().getNome()));
+        } else {
+            System.out.println("Categoria: Não informada");
+        }
+
         System.out.println("-------------------------------------");
     }
 

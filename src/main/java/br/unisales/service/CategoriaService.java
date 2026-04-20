@@ -96,6 +96,22 @@ public class CategoriaService {
                 return;
             }
 
+            Long emprestimosAtivos = entityManager.createQuery(
+                    "SELECT COUNT(e) FROM Emprestimo e " +
+                            "WHERE (e.status = 'ATIVO' OR e.status = 'RENOVADO') " +
+                            "AND e.exemplar.livro.isbn IN (" +
+                            "    SELECT lc.livro.isbn FROM LivroCategoria lc WHERE lc.categoria.id = :id" +
+                            ")",
+                    Long.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+
+            if (emprestimosAtivos > 0) {
+                System.out.println(
+                        "Não é possível remover: existe livro dessa categoria com exemplar em empréstimo ativo.");
+                return;
+            }
+
             transaction.begin();
             entityManager.remove(categoria);
             transaction.commit();
@@ -115,8 +131,7 @@ public class CategoriaService {
         try {
             Long maxId = em.createQuery(
                     "SELECT MAX(c.id) FROM Categoria c",
-                    Long.class
-            ).getSingleResult();
+                    Long.class).getSingleResult();
             return maxId != null ? maxId : 0;
         } catch (Exception e) {
             System.out.println("Erro ao buscar maior ID: " + e.getMessage());

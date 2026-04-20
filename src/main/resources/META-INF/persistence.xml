@@ -1,23 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-    ARQUIVO: persistence.xml
 
-    RESPONSABILIDADE:
-    Configurar as unidades de persistencia (persistence-unit) do JPA/Hibernate.
-
-    OBSERVACAO IMPORTANTE:
-    Cada persistence-unit representa uma configuracao de acesso a um banco de dados.
-
-    NESTE EXEMPLO:
-    - SQLitePU     -> configuracao para SQLite
-    - MySQLPU      -> configuracao para MySQL
-    - PostgresPU   -> configuracao para PostgreSQL
-    - SqlServerPU  -> configuracao para SQL Server
-
-    USO:
-    No codigo Java, escolha qual unidade sera usada, por exemplo:
-    Persistence.createEntityManagerFactory("SQLitePU");
--->
 <persistence xmlns="https://jakarta.ee/xml/ns/persistence"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
@@ -45,8 +27,8 @@
 
             <property name="hibernate.dialect" value="org.hibernate.community.dialect.SQLiteDialect"/>
             <property name="hibernate.hbm2ddl.auto" value="update"/>
-            <property name="hibernate.show_sql" value="true"/>
-            <property name="hibernate.format_sql" value="true"/>
+            <property name="hibernate.show_sql" value="false"/>
+            <property name="hibernate.format_sql" value="false"/>
         </properties>
     </persistence-unit>
 
