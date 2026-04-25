@@ -53,6 +53,22 @@ public class ReservaService {
                 return;
             }
 
+            // Verifica se o usuário já possui reserva ativa para o mesmo livro
+            Long reservasAtivas = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.usuarioId = :usuarioId " +
+                            "AND r.isbnLivro = :isbn " +
+                            "AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("usuarioId", reserva.getUsuarioId())
+                    .setParameter("isbn", reserva.getIsbnLivro())
+                    .getSingleResult();
+
+            if (reservasAtivas > 0) {
+                System.out.println("Não é possível reservar: usuário já possui uma reserva ativa para este livro.");
+                return;
+            }
+
             transaction.begin();
             entityManager.persist(reserva);
             transaction.commit();
