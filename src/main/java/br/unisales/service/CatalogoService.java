@@ -158,6 +158,20 @@ public class CatalogoService {
                 return;
             }
 
+            // Verifica se existe alguma reserva pendente para esse livro
+            Long reservasPendentes = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.isbnLivro = :isbn " +
+                            "AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("isbn", isbn)
+                    .getSingleResult();
+
+            if (reservasPendentes > 0) {
+                System.out.println("Não é possível remover: existem reservas pendentes para este livro.");
+                return;
+            }
+
             transaction.begin();
             entityManager.remove(livro);
             transaction.commit();
@@ -197,6 +211,20 @@ public class CatalogoService {
 
             if (emprestimosAtivos > 0) {
                 System.out.println("Não é possível remover: este exemplar possui empréstimo ativo.");
+                return;
+            }
+
+            // Verifica se existe alguma reserva pendente para o livro desse exemplar.
+            Long reservasPendentes = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.isbnLivro = :isbn " +
+                            "AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("isbn", exemplar.getLivro().getIsbn())
+                    .getSingleResult();
+
+            if (reservasPendentes > 0) {
+                System.out.println("Não é possível remover: existem reservas pendentes para o livro deste exemplar.");
                 return;
             }
 
