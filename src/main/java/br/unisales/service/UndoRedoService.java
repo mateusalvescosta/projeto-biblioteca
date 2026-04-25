@@ -5,6 +5,7 @@ import java.util.List;
 import br.unisales.Enumeration.StatusEmprestimoEnum;
 import br.unisales.Enumeration.StatusExemplarEnum;
 import br.unisales.database.table.Emprestimo;
+import br.unisales.database.table.Multa;
 import br.unisales.database.table.Usuario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -72,12 +73,26 @@ public class UndoRedoService {
 
             Emprestimo ultimo = lista.get(0);
             entityManager.getTransaction().begin();
+
             ultimo.setDataDevolucao(null);
             ultimo.setStatus(StatusEmprestimoEnum.ATIVO);
             if (ultimo.getExemplar() != null) {
                 ultimo.getExemplar().setStatus(StatusExemplarEnum.EMPRESTADO);
             }
             entityManager.merge(ultimo);
+
+            // Remove a multa associada ao empréstimo, se existir, para que ao devolver
+            // novamente o cálculo seja feito do zero.
+            List<Multa> multas = entityManager.createQuery(
+                    "SELECT m FROM Multa m WHERE m.emprestimoId = :id",
+                    Multa.class)
+                    .setParameter("id", ultimo.getId())
+                    .getResultList();
+
+            for (Multa multa : multas) {
+                entityManager.remove(entityManager.merge(multa));
+            }
+
             entityManager.getTransaction().commit();
             System.out.println("Devolução desfeita: ID " + ultimo.getId());
 
@@ -115,6 +130,20 @@ public class UndoRedoService {
 
             if (emprestimosAtivos > 0) {
                 System.out.println("Não é possível desfazer: usuário possui empréstimos ativos.");
+                return;
+            }
+
+            // Verifica se o usuário possui reservas pendentes
+            Long reservasPendentes = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.usuarioId = :id " +
+                            "AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("id", ultimo.getId())
+                    .getSingleResult();
+
+            if (reservasPendentes > 0) {
+                System.out.println("Não é possível desfazer: usuário possui reservas pendentes.");
                 return;
             }
 
