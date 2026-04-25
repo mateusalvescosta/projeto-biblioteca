@@ -81,16 +81,7 @@ public class EmprestimoService {
                     return;
                 }
             }
-            emprestimo.setId(getNextId());
-            emprestimo.setUsuario(usuario);
-            emprestimo.setExemplar(exemplar);
-            exemplar.setStatus(StatusExemplarEnum.EMPRESTADO);
-            entityManager.merge(exemplar);
-            entityManager.persist(emprestimo);
-            transaction.commit();
-            System.out.println("Empréstimo cadastrado com sucesso.");
-
-            // Verifica e remove reserva do usuário que acabou de pegar o livro
+            // Verifica reserva ANTES do commit
             List<Reserva> reservas = entityManager.createQuery(
                     "SELECT r FROM Reserva r WHERE r.isbnLivro = :isbn AND r.usuarioId = :usuarioId",
                     Reserva.class)
@@ -98,12 +89,21 @@ public class EmprestimoService {
                     .setParameter("usuarioId", emprestimo.getUsuario().getId())
                     .getResultList();
 
+            emprestimo.setId(getNextId());
+            emprestimo.setUsuario(usuario);
+            emprestimo.setExemplar(exemplar);
+            exemplar.setStatus(StatusExemplarEnum.EMPRESTADO);
+            entityManager.merge(exemplar);
+            entityManager.persist(emprestimo);
+
+            // Remove reserva dentro da mesma transação
             if (!reservas.isEmpty()) {
-                transaction.begin();
                 entityManager.remove(entityManager.merge(reservas.get(0)));
-                transaction.commit();
                 System.out.println("Reserva removida automaticamente.");
             }
+
+            transaction.commit();
+            System.out.println("Empréstimo cadastrado com sucesso.");
 
         } catch (Exception e) {
             if (transaction.isActive()) {
