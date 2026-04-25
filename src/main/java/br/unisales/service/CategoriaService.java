@@ -96,6 +96,38 @@ public class CategoriaService {
                 return;
             }
 
+            Long emprestimosAtivos = entityManager.createQuery(
+                    "SELECT COUNT(e) FROM Emprestimo e " +
+                            "WHERE (e.status = 'ATIVO' OR e.status = 'RENOVADO') " +
+                            "AND e.exemplar.livro.isbn IN (" +
+                            "    SELECT lc.livro.isbn FROM LivroCategoria lc WHERE lc.categoria.id = :id" +
+                            ")",
+                    Long.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+
+            if (emprestimosAtivos > 0) {
+                System.out.println(
+                        "Não é possível remover: existe livro dessa categoria com exemplar em empréstimo ativo.");
+                return;
+            }
+
+            // Verifica se existe alguma reserva pendente para livros dessa categoria
+            Long reservasPendentes = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.isbnLivro IN (" +
+                            "    SELECT lc.livro.isbn FROM LivroCategoria lc WHERE lc.categoria.id = :id" +
+                            ") AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+
+            if (reservasPendentes > 0) {
+                System.out.println(
+                        "Não é possível remover: existe livro dessa categoria com reserva pendente.");
+                return;
+            }
+
             transaction.begin();
             entityManager.remove(categoria);
             transaction.commit();
@@ -115,12 +147,11 @@ public class CategoriaService {
         try {
             Long maxId = em.createQuery(
                     "SELECT MAX(c.id) FROM Categoria c",
-                    Long.class
-            ).getSingleResult();
+                    Long.class).getSingleResult();
             return maxId != null ? maxId : 0;
         } catch (Exception e) {
             System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return (long) 1;
+            return 0L;
         } finally {
             em.close();
         }

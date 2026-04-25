@@ -1,8 +1,11 @@
 package br.unisales.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import br.unisales.database.table.Livro;
+import br.unisales.database.table.Notificacao;
 import br.unisales.database.table.Reserva;
 import br.unisales.database.table.Usuario;
 import jakarta.persistence.EntityManager;
@@ -22,6 +25,50 @@ public class ReservaService {
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            // Verifica se o usuário está bloqueado
+            Usuario usuario = entityManager.find(Usuario.class, reserva.getUsuarioId());
+            if (usuario == null) {
+                System.out.println("Usuário não encontrado.");
+                return;
+            }
+
+            if (Boolean.TRUE.equals(usuario.getBloqueado())) {
+                System.out.println("Não é possível reservar: usuário está bloqueado.");
+                return;
+            }
+
+            // Verifica se o usuário já possui empréstimo ativo desse livro
+            Long emprestimosAtivos = entityManager.createQuery(
+                    "SELECT COUNT(e) FROM Emprestimo e " +
+                            "WHERE e.usuario.id = :usuarioId " +
+                            "AND e.exemplar.livro.isbn = :isbn " +
+                            "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
+                    Long.class)
+                    .setParameter("usuarioId", reserva.getUsuarioId())
+                    .setParameter("isbn", reserva.getIsbnLivro())
+                    .getSingleResult();
+
+            if (emprestimosAtivos > 0) {
+                System.out.println("Não é possível reservar: usuário já possui um empréstimo ativo deste livro.");
+                return;
+            }
+
+            // Verifica se o usuário já possui reserva ativa para o mesmo livro
+            Long reservasAtivas = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.usuarioId = :usuarioId " +
+                            "AND r.isbnLivro = :isbn " +
+                            "AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("usuarioId", reserva.getUsuarioId())
+                    .setParameter("isbn", reserva.getIsbnLivro())
+                    .getSingleResult();
+
+            if (reservasAtivas > 0) {
+                System.out.println("Não é possível reservar: usuário já possui uma reserva ativa para este livro.");
+                return;
+            }
+
             transaction.begin();
             entityManager.persist(reserva);
             transaction.commit();
@@ -48,12 +95,13 @@ public class ReservaService {
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            transaction.begin();
             Reserva reserva = entityManager.find(Reserva.class, id);
             if (reserva == null) {
+                transaction.rollback();
                 System.out.println("Reserva não encontrada.");
                 return;
             }
-            transaction.begin();
             entityManager.remove(reserva);
             transaction.commit();
             System.out.println("Reserva cancelada com sucesso.");
@@ -72,6 +120,7 @@ public class ReservaService {
      */
     public void atenderProximaReserva(String isbn) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+        EntityTransaction transaction = entityManager.getTransaction();
 
         try {
             List<Reserva> reservas = entityManager
@@ -93,13 +142,43 @@ public class ReservaService {
 
             System.out.println("-------------------------------------");
             System.out.println("Próximo da fila:");
-            System.out.println("Usuário: " + (usuario != null ? usuario.getNome() : "Não encontrado"));
-            System.out.println("E-mail:  " + (usuario != null ? usuario.getEmail() : "Não encontrado"));
-            System.out.println("Livro:   " + (livro != null ? livro.getTitulo() : "Não encontrado"));
+            System.out.println("ID:              " + proxima.getId());
+            System.out.println("Usuário:         " + (usuario != null ? usuario.getNome() : "Não encontrado"));
+            System.out.println("E-mail:          " + (usuario != null ? usuario.getEmail() : "Não encontrado"));
+            System.out.println("Livro:           " + (livro != null ? livro.getTitulo() : "Não encontrado"));
             System.out.println("Data da reserva: " + proxima.getDataReserva());
             System.out.println("-------------------------------------");
 
+            if (usuario != null && livro != null) {
+                LocalDateTime prazo = LocalDateTime.now().plusDays(2);
+                String mensagem = "Olá, " + usuario.getNome() + "! O livro \"" + livro.getTitulo() +
+                        "\" que você reservou está disponível. Por favor, retire-o até " +
+                        prazo.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".";
+
+                Notificacao notificacao = Notificacao.builder()
+                        .id(getNextNotificacaoId(entityManager))
+                        .usuarioId(usuario.getId())
+                        .mensagem(mensagem)
+                        .build();
+
+                transaction.begin();
+                entityManager.persist(notificacao);
+                transaction.commit();
+
+                System.out.println("-------------------------------------");
+                System.out.println("NOTIFICAÇÃO ENVIADA:");
+                System.out.println("Para:     " + usuario.getNome());
+                System.out.println("E-mail:   " + usuario.getEmail());
+                System.out.println("Mensagem: " + mensagem);
+                System.out.println(
+                        "Data:     " + notificacao.getDataCriacao().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+                System.out.println("-------------------------------------");
+            }
+
         } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
             Throwable causa = e;
             while (causa.getCause() != null) {
                 causa = causa.getCause();
@@ -111,7 +190,7 @@ public class ReservaService {
     }
 
     /**
-     * Busca reservas pelo título do livro (busca parcial, case-insensitive).
+     * Busca reservas pelo título do livro
      */
     public void buscarPorTituloLivro(String titulo) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
@@ -171,4 +250,9 @@ public class ReservaService {
         }
     }
 
+    private Long getNextNotificacaoId(EntityManager entityManager) {
+        Long maxId = entityManager.createQuery(
+                "SELECT MAX(n.id) FROM Notificacao n", Long.class).getSingleResult();
+        return maxId != null ? maxId + 1 : 1L;
+    }
 }
