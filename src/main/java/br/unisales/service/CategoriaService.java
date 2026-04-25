@@ -112,6 +112,22 @@ public class CategoriaService {
                 return;
             }
 
+            // Verifica se existe alguma reserva pendente para livros dessa categoria
+            Long reservasPendentes = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r " +
+                            "WHERE r.isbnLivro IN (" +
+                            "    SELECT lc.livro.isbn FROM LivroCategoria lc WHERE lc.categoria.id = :id" +
+                            ") AND r.status = 'RESERVADO'",
+                    Long.class)
+                    .setParameter("id", id)
+                    .getSingleResult();
+
+            if (reservasPendentes > 0) {
+                System.out.println(
+                        "Não é possível remover: existe livro dessa categoria com reserva pendente.");
+                return;
+            }
+
             transaction.begin();
             entityManager.remove(categoria);
             transaction.commit();
@@ -135,7 +151,7 @@ public class CategoriaService {
             return maxId != null ? maxId : 0;
         } catch (Exception e) {
             System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return (long) 1;
+            return 0L;
         } finally {
             em.close();
         }
