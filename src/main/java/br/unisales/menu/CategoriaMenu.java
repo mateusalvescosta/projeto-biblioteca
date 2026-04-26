@@ -11,45 +11,35 @@ import br.unisales.service.CategoriaService;
 public final class CategoriaMenu {
     private final Scanner scanner;
 
+    // Inicializa o menu de categorias e gerencia o fluxo de interação com o usuário
     public CategoriaMenu(Scanner scanner) {
         this.scanner = scanner;
         System.out.println("==========================================");
         System.out.println("   SISTEMA DE CRUD DE CATEGORIA COM JPA     ");
         System.out.println("==========================================");
-        /*
-         * Cria a fábrica de EntityManager com base na persistence-unit
-         * definida no arquivo persistence.xml.
-         *
-         * Troque "SQLitePU" por:
-         * - "MySQLPU"
-         * - "PostgresPU"
-         * - "SqlServerPU"
-         * conforme o banco desejado.
-         */
-        ManagerFactory emf = new ManagerFactory("SQLitePU");
-        CategoriaService categoriaService = new CategoriaService(emf.get());
+
+        ManagerFactory managerFactory = new ManagerFactory("SQLitePU");
+        CategoriaService categoriaService = new CategoriaService(managerFactory.get());
         int opcao;
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opção: ");
+            opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
-                case 1 -> cadastrar(categoriaService);
-                case 2 -> listar(categoriaService);
-                case 3 -> buscarPorId(categoriaService);
-                case 4 -> atualizar(categoriaService);
-                case 5 -> excluir(categoriaService);
+                case 1 -> cadastrarCategoria(categoriaService);
+                case 2 -> listarCategorias(categoriaService);
+                case 3 -> buscarCategoriaPorId(categoriaService);
+                case 4 -> atualizarCategoria(categoriaService);
+                case 5 -> excluirCategoria(categoriaService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
             System.out.println();
         } while (opcao != 100);
-        emf.close();
+        managerFactory.close();
     }
 
-    /**
-     * Exibe o menu principal do sistema.
-     */
+    // Exibe as opções disponíveis no menu de categorias
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Cadastrar categoria");
@@ -61,28 +51,25 @@ public final class CategoriaMenu {
         System.out.println("-------------------------------------");
     }
 
-    /**
-     * Realiza o cadastro de um novo categoria.
-     */
-    private void cadastrar(CategoriaService categoriaService) {
+    // Coleta o nome da categoria e aciona o cadastro
+    private void cadastrarCategoria(CategoriaService categoriaService) {
         MenuUtil.limparConsole();
         System.out.println("=== CADASTRAR CATEGORIA ===");
-        String nome = this.lerTexto("Informe a categoria: ");
+        String nome = MenuUtil.lerTexto(this.scanner, "Informe a categoria: ");
         Categoria item = new Categoria(null, nome, null);
-        categoriaService.inserir(item);
+        categoriaService.inserirCategoria(item);
     }
 
-    /**
-     * Lista todos os categorias cadastrados.
-     */
-    private static void listar(CategoriaService categoriaService) {
+    // Lista e exibe todas as categorias cadastradas
+    private static void listarCategorias(CategoriaService categoriaService) {
         MenuUtil.limparConsole();
         System.out.println("=== LISTAR CATEGORIA ===");
-        List<Categoria> lista = categoriaService.listarTodos();
+        List<Categoria> lista = categoriaService.listarTodasCategorias();
         if (lista.isEmpty()) {
             System.out.println("Nenhuma categoria cadastrada.");
             return;
         }
+        // Exibe o ID e nome de cada categoria encontrada
         for (Categoria item : lista) {
             System.out.println("-------------------------------------");
             System.out.println("ID: " + item.getId());
@@ -91,18 +78,17 @@ public final class CategoriaMenu {
         System.out.println("-------------------------------------");
     }
 
-    /**
-     * Busca um categoria pelo ID.
-     */
-    private void buscarPorId(CategoriaService categoriaService) {
+    // Busca e exibe uma categoria pelo ID informado
+    private void buscarCategoriaPorId(CategoriaService categoriaService) {
         MenuUtil.limparConsole();
         System.out.println("=== BUSCAR CATEGORIA POR ID ===");
-        Integer id = this.lerInteiro("Informe o ID da categoria: ");
-        Categoria item = categoriaService.buscarPorId(id);
+        Integer id = MenuUtil.lerInteiro(this.scanner, "Informe o ID da categoria: ");
+        Categoria item = categoriaService.buscarCategoriaPorId(id);
         if (item == null) {
             System.out.println("Categoria não encontrada.");
             return;
         }
+        // Exibe os dados da categoria encontrada
         System.out.println("Categoria encontrada:");
         System.out.println("-------------------------------------");
         System.out.println("ID: " + item.getId());
@@ -110,68 +96,49 @@ public final class CategoriaMenu {
         System.out.println("-------------------------------------");
     }
 
-    /**
-     * Atualiza os dados de um categoria existente.
-     */
-    private void atualizar(CategoriaService categoriaService) {
+    // Busca a categoria pelo ID e permite alterar o nome
+    private void atualizarCategoria(CategoriaService categoriaService) {
         MenuUtil.limparConsole();
         System.out.println("=== ATUALIZAR CATEGORIA ===");
-        Integer id = this.lerInteiro("Informe o ID da categoria que será atualizada: ");
-        Categoria item = categoriaService.buscarPorId(id);
+        Integer id = MenuUtil.lerInteiro(this.scanner, "Informe o ID da categoria que será atualizada: ");
+
+        // Valida se a categoria existe antes de solicitar o novo nome
+        Categoria item = categoriaService.buscarCategoriaPorId(id);
         if (item == null) {
             System.out.println("Categoria não encontrada.");
             return;
         }
+
+        // Exibe o nome atual e solicita o novo nome
         System.out.println("Dados atuais da categoria:");
         System.out.println("Nome: " + item.getNome());
-        String novoNome = this.lerTexto("Informe a nova categoria: ");
+        String novoNome = MenuUtil.lerTexto(this.scanner, "Informe a nova categoria: ");
         item.setNome(novoNome);
-        categoriaService.atualizar(item);
+        categoriaService.atualizarCategoria(item);
     }
 
-    /**
-     * Exclui um categoria pelo ID.
-     */
-    private void excluir(CategoriaService categoriaService) {
+    // Busca a categoria pelo ID e solicita confirmação antes de excluí-la
+    private void excluirCategoria(CategoriaService categoriaService) {
         MenuUtil.limparConsole();
         System.out.println("=== EXCLUIR CATEGORIA ===");
-        Integer id = this.lerInteiro("Informe o ID da categoria que será excluída: ");
-        Categoria item = categoriaService.buscarPorId(id);
+        Integer id = MenuUtil.lerInteiro(this.scanner, "Informe o ID da categoria que será excluída: ");
+
+        // Valida se a categoria existe antes de solicitar confirmação
+        Categoria item = categoriaService.buscarCategoriaPorId(id);
         if (item == null) {
             System.out.println("Categoria não encontrada.");
             return;
         }
+
+        // Exibe os dados e solicita confirmação do usuário antes de excluir
         System.out.println("Categoria localizada:");
         System.out.println("ID: " + item.getId());
         System.out.println("Nome: " + item.getNome());
-        String confirmacao = this.lerTexto("Deseja realmente excluir esta categoria? (S/N): ");
+        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente excluir esta categoria? (S/N): ");
         if (confirmacao.equalsIgnoreCase("S")) {
-            categoriaService.deletar(id);
+            categoriaService.deletarCategoria(id);
         } else {
             System.out.println("Exclusão cancelada.");
         }
     }
-
-    /**
-     * Lê um número inteiro digitado pelo categoria.
-     */
-    private Integer lerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    /**
-     * Lê um texto digitado pelo categoria.
-     */
-    private String lerTexto(String mensagem) {
-        System.out.print(mensagem);
-        return this.scanner.nextLine();
-    }
-
 }
