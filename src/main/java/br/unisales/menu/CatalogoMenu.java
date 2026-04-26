@@ -13,37 +13,39 @@ import br.unisales.service.CatalogoService;
 public final class CatalogoMenu {
     private final Scanner scanner;
 
+    // Inicializa o menu do catálogo e gerencia o fluxo de interação com o usuário
     public CatalogoMenu(Scanner scanner) {
         this.scanner = scanner;
         System.out.println("==========================================");
         System.out.println("   SISTEMA DE CATÁLOGO DE LIVROS COM JPA  ");
         System.out.println("==========================================");
 
-        ManagerFactory emf = new ManagerFactory("SQLitePU");
-        CatalogoService catalogoService = new CatalogoService(emf.get());
+        ManagerFactory managerFactory = new ManagerFactory("SQLitePU");
+        CatalogoService catalogoService = new CatalogoService(managerFactory.get());
 
         int opcao;
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opção: ");
+            opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
                 case 1 -> cadastrarLivro(catalogoService);
                 case 2 -> cadastrarExemplar(catalogoService);
                 case 3 -> removerLivro(catalogoService);
                 case 4 -> removerExemplar(catalogoService);
-                case 5 -> buscarPorIsbn(catalogoService);
-                case 6 -> buscarPorTitulo(catalogoService);
-                case 7 -> listar(catalogoService);
+                case 5 -> buscarLivroPorIsbn(catalogoService);
+                case 6 -> buscarLivroPorTitulo(catalogoService);
+                case 7 -> listarLivros(catalogoService);
                 case 8 -> listarExemplares(catalogoService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
             System.out.println();
         } while (opcao != 100);
-        emf.close();
+        managerFactory.close();
     }
 
+    // Exibe as opções disponíveis no menu do catálogo
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Cadastrar livro");
@@ -58,13 +60,15 @@ public final class CatalogoMenu {
         System.out.println("-------------------------------------");
     }
 
+    // Coleta os dados do livro, autor e categoria e aciona o cadastro
     private void cadastrarLivro(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== CADASTRAR LIVRO ===");
-        String isbn = lerTexto("Informe o ISBN: ");
-        String titulo = lerTexto("Informe o título: ");
-        String recebeAno = lerTexto("Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN: ");
+        String titulo = MenuUtil.lerTexto(this.scanner, "Informe o título: ");
+        String recebeAno = MenuUtil.lerTexto(this.scanner, "Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
 
+        // Tenta converter o ano informado, ignorando o campo em caso de formato inválido
         LocalDate ano = null;
         if (!recebeAno.isBlank()) {
             try {
@@ -74,8 +78,8 @@ public final class CatalogoMenu {
             }
         }
 
-        String nomeAutor = lerTexto("Informe o nome do autor: ");
-        String nomeCategoria = lerTexto("Informe o nome da categoria: ");
+        String nomeAutor = MenuUtil.lerTexto(this.scanner, "Informe o nome do autor: ");
+        String nomeCategoria = MenuUtil.lerTexto(this.scanner, "Informe o nome da categoria: ");
 
         Livro livro = Livro.builder()
                 .isbn(isbn)
@@ -86,12 +90,14 @@ public final class CatalogoMenu {
         catalogoService.cadastrarLivro(livro, nomeAutor, nomeCategoria);
     }
 
+    // Busca o livro pelo ISBN e cadastra um novo exemplar vinculado a ele
     private void cadastrarExemplar(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== CADASTRAR EXEMPLAR ===");
-        String isbn = lerTexto("Informe o ISBN do livro: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN do livro: ");
 
-        Livro livro = catalogoService.buscarPorIsbn(isbn);
+        // Valida se o livro existe antes de criar o exemplar
+        Livro livro = catalogoService.buscarLivroPorIsbn(isbn);
         if (livro == null) {
             System.out.println("Livro não encontrado para o ISBN informado.");
             return;
@@ -104,19 +110,22 @@ public final class CatalogoMenu {
         catalogoService.cadastrarExemplar(exemplar);
     }
 
+    // Busca o livro pelo ISBN e solicita confirmação antes de removê-lo
     private void removerLivro(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== REMOVER LIVRO ===");
-        String isbn = lerTexto("Informe o ISBN do livro a ser removido: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN do livro a ser removido: ");
 
-        Livro livro = catalogoService.buscarPorIsbn(isbn);
+        // Valida se o livro existe antes de solicitar confirmação
+        Livro livro = catalogoService.buscarLivroPorIsbn(isbn);
         if (livro == null) {
             System.out.println("Livro não encontrado.");
             return;
         }
 
+        // Solicita confirmação do usuário antes de remover
         System.out.println("Livro encontrado: " + livro.getTitulo());
-        String confirmacao = lerTexto("Deseja realmente remover este livro e todos os seus exemplares? (S/N): ");
+        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente remover este livro e todos os seus exemplares? (S/N): ");
         if (confirmacao.equalsIgnoreCase("S")) {
             catalogoService.removerLivro(isbn);
         } else {
@@ -124,11 +133,14 @@ public final class CatalogoMenu {
         }
     }
 
+    // Solicita o ID do exemplar e confirmação antes de removê-lo
     private void removerExemplar(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== REMOVER EXEMPLAR ===");
-        Long id = lerLong("Informe o ID do exemplar a ser removido: ");
-        String confirmacao = lerTexto("Deseja realmente remover este exemplar? (S/N): ");
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID do exemplar a ser removido: ");
+
+        // Solicita confirmação do usuário antes de remover
+        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente remover este exemplar? (S/N): ");
         if (confirmacao.equalsIgnoreCase("S")) {
             catalogoService.removerExemplar(id);
         } else {
@@ -136,11 +148,12 @@ public final class CatalogoMenu {
         }
     }
 
-    private void buscarPorIsbn(CatalogoService catalogoService) {
+    // Busca e exibe um livro pelo ISBN exato
+    private void buscarLivroPorIsbn(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== BUSCAR POR ISBN ===");
-        String isbn = lerTexto("Informe o ISBN: ");
-        Livro livro = catalogoService.buscarPorIsbn(isbn);
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN: ");
+        Livro livro = catalogoService.buscarLivroPorIsbn(isbn);
         if (livro == null) {
             System.out.println("Livro não encontrado.");
             return;
@@ -148,11 +161,12 @@ public final class CatalogoMenu {
         exibirLivro(livro);
     }
 
-    private void buscarPorTitulo(CatalogoService catalogoService) {
+    // Busca e exibe livros cujo título contenha o termo informado
+    private void buscarLivroPorTitulo(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== BUSCAR POR TÍTULO ===");
-        String titulo = lerTexto("Informe o título (ou parte dele): ");
-        List<Livro> lista = catalogoService.buscarPorTitulo(titulo);
+        String titulo = MenuUtil.lerTexto(this.scanner, "Informe o título (ou parte dele): ");
+        List<Livro> lista = catalogoService.buscarLivrosPorTitulo(titulo);
         if (lista.isEmpty()) {
             System.out.println("Nenhum livro encontrado.");
             return;
@@ -160,10 +174,11 @@ public final class CatalogoMenu {
         lista.forEach(CatalogoMenu::exibirLivro);
     }
 
-    private static void listar(CatalogoService catalogoService) {
+    // Lista e exibe todos os livros cadastrados no catálogo
+    private static void listarLivros(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== LISTAR TODOS OS LIVROS ===");
-        List<Livro> lista = catalogoService.listar();
+        List<Livro> lista = catalogoService.listarLivros();
         if (lista.isEmpty()) {
             System.out.println("Nenhum livro cadastrado.");
             return;
@@ -171,12 +186,14 @@ public final class CatalogoMenu {
         lista.forEach(CatalogoMenu::exibirLivro);
     }
 
+    // Busca o livro pelo ISBN e exibe todos os seus exemplares
     private void listarExemplares(CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== LISTAR EXEMPLARES DE UM LIVRO ===");
-        String isbn = lerTexto("Informe o ISBN do livro: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN do livro: ");
 
-        Livro livro = catalogoService.buscarPorIsbn(isbn);
+        // Valida se o livro existe antes de listar os exemplares
+        Livro livro = catalogoService.buscarLivroPorIsbn(isbn);
         if (livro == null) {
             System.out.println("Livro não encontrado.");
             return;
@@ -189,6 +206,7 @@ public final class CatalogoMenu {
             return;
         }
 
+        // Exibe o ID e status de cada exemplar encontrado
         System.out.println("-------------------------------------");
         for (Exemplar e : exemplares) {
             System.out.println("ID:     " + e.getId());
@@ -197,18 +215,21 @@ public final class CatalogoMenu {
         }
     }
 
+    // Exibe os dados formatados de um livro incluindo autores e categorias
     private static void exibirLivro(Livro livro) {
         System.out.println("-------------------------------------");
         System.out.println("ISBN:   " + livro.getIsbn());
         System.out.println("Título: " + livro.getTitulo());
         System.out.println("Ano:    " + (livro.getAno() != null ? livro.getAno() : "Não informado"));
 
+        // Exibe os autores vinculados ao livro
         if (livro.getLivroAutores() != null && !livro.getLivroAutores().isEmpty()) {
             livro.getLivroAutores().forEach(la -> System.out.println("Autor:     " + la.getAutor().getNome()));
         } else {
             System.out.println("Autor:     Não informado");
         }
 
+        // Exibe as categorias vinculadas ao livro
         if (livro.getLivroCategorias() != null && !livro.getLivroCategorias().isEmpty()) {
             livro.getLivroCategorias().forEach(lc -> System.out.println("Categoria: " + lc.getCategoria().getNome()));
         } else {
@@ -216,32 +237,5 @@ public final class CatalogoMenu {
         }
 
         System.out.println("-------------------------------------");
-    }
-
-    private Integer lerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private Long lerLong(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Long.parseLong(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private String lerTexto(String mensagem) {
-        System.out.print(mensagem);
-        return this.scanner.nextLine();
     }
 }
