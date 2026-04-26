@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+// Entidade que representa um exemplar físico de um livro no banco de dados
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,20 +25,25 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "exemplar")
 public class Exemplar {
+
+    // Identificador único do exemplar
     @Id
     @Column(name = "id", nullable = false, length = 20)
     private Long id;
-    
+
+    // Livro ao qual este exemplar pertence, carregado sob demanda
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "isbn")
     private Livro livro;
-    
+
+    // Status atual do exemplar: DISPONIVEL ou EMPRESTADO
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private StatusExemplarEnum status;
 
+    // Define o status inicial como DISPONIVEL automaticamente ao persistir o exemplar
     @PrePersist
     public void prePersist() {
-            this.status = StatusExemplarEnum.DISPONIVEL;
+        this.status = StatusExemplarEnum.DISPONIVEL;
     }
 }
