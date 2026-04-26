@@ -15,6 +15,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Builder.Default;
 
+// Entidade que representa uma categoria de livros no banco de dados
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,13 +23,17 @@ import lombok.Builder.Default;
 @Entity
 @Table(name = "categoria")
 public class Categoria {
+
+    // Identificador único da categoria
     @Id
     @Column(name = "id", nullable = false)
     private Long id;
 
+    // Nome da categoria, deve ser único na tabela
     @Column(name = "nome", nullable = false, length = 100, unique = true)
     private String nome;
 
+    // Lista de associações entre esta categoria e os livros vinculados a ela
     @Default
     @OneToMany(mappedBy = "categoria", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LivroCategoria> livroCategorias = new ArrayList<>();
