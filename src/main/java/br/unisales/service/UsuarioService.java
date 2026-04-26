@@ -62,8 +62,8 @@ public class UsuarioService {
             entityManager.merge(usuario);
             transaction.commit();
 
-            String acao = novoStatus ? "bloqueado" : "desbloqueado";
-            System.out.println("Usuário " + acao + " com sucesso.");
+            String acaoBloquearDesbloquear = novoStatus ? "bloqueado" : "desbloqueado";
+            System.out.println("Usuário " + acaoBloquearDesbloquear + " com sucesso.");
         } catch (Exception e) {
             if (transaction.isActive()) {
                 transaction.rollback();
