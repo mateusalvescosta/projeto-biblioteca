@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!--
+    Arquivo de configuração da unidade de persistência JPA.
+    Define o banco de dados, o provedor Hibernate e as entidades mapeadas.
+-->
 <persistence xmlns="https://jakarta.ee/xml/ns/persistence"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
              https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd"
              version="3.0">
 
+    <!-- Unidade de persistência configurada para o banco SQLite -->
     <persistence-unit name="SQLitePU">
+
+        <!-- Provedor JPA utilizado: Hibernate -->
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
+        <!-- Entidades mapeadas no banco de dados -->
         <class>br.unisales.database.table.Autor</class>
         <class>br.unisales.database.table.Categoria</class>
         <class>br.unisales.database.table.Livro</class>
@@ -22,12 +30,22 @@
         <class>br.unisales.database.table.Exemplar</class>
 
         <properties>
+            <!-- Driver JDBC do SQLite -->
             <property name="jakarta.persistence.jdbc.driver" value="org.sqlite.JDBC"/>
+
+            <!-- URL de conexão com o banco, armazenado na pasta dados do projeto -->
             <property name="jakarta.persistence.jdbc.url" value="jdbc:sqlite:./dados/biblioteca_db.db"/>
 
+            <!-- Dialeto do Hibernate para o SQLite -->
             <property name="hibernate.dialect" value="org.hibernate.community.dialect.SQLiteDialect"/>
+
+            <!-- Atualiza o schema automaticamente sem recriar as tabelas -->
             <property name="hibernate.hbm2ddl.auto" value="update"/>
+
+            <!-- Desativa a exibição das queries SQL no console -->
             <property name="hibernate.show_sql" value="false"/>
+
+            <!-- Desativa a formatação das queries SQL no console -->
             <property name="hibernate.format_sql" value="false"/>
         </properties>
     </persistence-unit>
