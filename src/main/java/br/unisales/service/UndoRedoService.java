@@ -5,6 +5,7 @@ import java.util.List;
 import br.unisales.Enumeration.StatusEmprestimoEnum;
 import br.unisales.Enumeration.StatusExemplarEnum;
 import br.unisales.database.table.Emprestimo;
+import br.unisales.database.table.Exemplar;
 import br.unisales.database.table.Multa;
 import br.unisales.database.table.Notificacao;
 import br.unisales.database.table.Usuario;
@@ -36,23 +37,23 @@ public class UndoRedoService {
                 return;
             }
 
-            Emprestimo ultimo = lista.get(0);
+            Emprestimo ultimoEmprestimo = lista.get(0);
 
             // Valida se o empréstimo ainda está ativo ou renovado
-            if (ultimo.getStatus() != StatusEmprestimoEnum.ATIVO &&
-                    ultimo.getStatus() != StatusEmprestimoEnum.RENOVADO) {
+            if (ultimoEmprestimo.getStatus() != StatusEmprestimoEnum.ATIVO &&
+                    ultimoEmprestimo.getStatus() != StatusEmprestimoEnum.RENOVADO) {
                 System.out.println("Não é possível desfazer: empréstimo já foi encerrado.");
                 return;
             }
 
             // Remove o empréstimo e restaura o status do exemplar para disponível
             entityManager.getTransaction().begin();
-            if (ultimo.getExemplar() != null) {
-                ultimo.getExemplar().setStatus(StatusExemplarEnum.DISPONIVEL);
+            if (ultimoEmprestimo.getExemplar() != null) {
+                ultimoEmprestimo.getExemplar().setStatus(StatusExemplarEnum.DISPONIVEL);
             }
-            entityManager.remove(entityManager.merge(ultimo));
+            entityManager.remove(entityManager.merge(ultimoEmprestimo));
             entityManager.getTransaction().commit();
-            System.out.println("Empréstimo desfeito: ID " + ultimo.getId());
+            System.out.println("Empréstimo desfeito: ID " + ultimoEmprestimo.getId());
 
         } catch (Exception e) {
             if (entityManager.getTransaction().isActive())
@@ -79,22 +80,29 @@ public class UndoRedoService {
                 return;
             }
 
-            Emprestimo ultimo = lista.get(0);
+            Emprestimo ultimaDevolucao = lista.get(0);
+
+            // Valida se o exemplar está disponível para ser revertido
+            Exemplar exemplar = entityManager.find(Exemplar.class, ultimaDevolucao.getExemplar().getId());
+            if (exemplar.getStatus() != StatusExemplarEnum.DISPONIVEL) {
+                System.out.println("Não é possível desfazer: o exemplar foi emprestado novamente após a devolução.");
+                return;
+            }
+
             entityManager.getTransaction().begin();
 
             // Reverte a devolução, restaurando o status do empréstimo e do exemplar
-            ultimo.setDataDevolucao(null);
-            ultimo.setStatus(StatusEmprestimoEnum.ATIVO);
-            if (ultimo.getExemplar() != null) {
-                ultimo.getExemplar().setStatus(StatusExemplarEnum.EMPRESTADO);
-            }
-            entityManager.merge(ultimo);
+            ultimaDevolucao.setDataDevolucao(null);
+            ultimaDevolucao.setStatus(StatusEmprestimoEnum.ATIVO);
+            exemplar.setStatus(StatusExemplarEnum.EMPRESTADO);
+            entityManager.merge(exemplar);
+            entityManager.merge(ultimaDevolucao);
 
             // Busca e remove a multa associada para que o cálculo seja refeito na próxima devolução
             List<Multa> multas = entityManager.createQuery(
                     "SELECT m FROM Multa m WHERE m.emprestimoId = :id",
                     Multa.class)
-                    .setParameter("id", ultimo.getId())
+                    .setParameter("id", ultimaDevolucao.getId())
                     .getResultList();
 
             for (Multa multa : multas) {
@@ -102,7 +110,7 @@ public class UndoRedoService {
             }
 
             entityManager.getTransaction().commit();
-            System.out.println("Devolução desfeita: ID " + ultimo.getId());
+            System.out.println("Devolução desfeita: ID " + ultimaDevolucao.getId());
 
         } catch (Exception e) {
             if (entityManager.getTransaction().isActive())
@@ -129,14 +137,14 @@ public class UndoRedoService {
                 return;
             }
 
-            Usuario ultimo = lista.get(0);
+            Usuario ultimoUsuario = lista.get(0);
 
             // Valida se o usuário não possui empréstimos ativos
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e WHERE e.usuario.id = :id " +
                             "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
                     Long.class)
-                    .setParameter("id", ultimo.getId())
+                    .setParameter("id", ultimoUsuario.getId())
                     .getSingleResult();
 
             if (emprestimosAtivos > 0) {
@@ -150,7 +158,7 @@ public class UndoRedoService {
                             "WHERE r.usuarioId = :id " +
                             "AND r.status = 'RESERVADO'",
                     Long.class)
-                    .setParameter("id", ultimo.getId())
+                    .setParameter("id", ultimoUsuario.getId())
                     .getSingleResult();
 
             if (reservasPendentes > 0) {
@@ -160,9 +168,9 @@ public class UndoRedoService {
 
             // Remove o usuário do banco
             entityManager.getTransaction().begin();
-            entityManager.remove(entityManager.merge(ultimo));
+            entityManager.remove(entityManager.merge(ultimoUsuario));
             entityManager.getTransaction().commit();
-            System.out.println("Cadastro de usuário desfeito: " + ultimo.getNome());
+            System.out.println("Cadastro de usuário desfeito: " + ultimoUsuario.getNome());
 
         } catch (Exception e) {
             if (entityManager.getTransaction().isActive())
@@ -190,14 +198,14 @@ public class UndoRedoService {
             }
 
             // Reverte o prazo de devolução e restaura o status para ativo
-            Emprestimo ultimo = lista.get(0);
+            Emprestimo ultimoRenovaEmprestimo = lista.get(0);
             entityManager.getTransaction().begin();
-            ultimo.setDataDevolucaoPrevista(ultimo.getDataDevolucaoPrevista().minusDays(7));
-            ultimo.setStatus(StatusEmprestimoEnum.ATIVO);
-            entityManager.merge(ultimo);
+            ultimoRenovaEmprestimo.setDataDevolucaoPrevista(ultimoRenovaEmprestimo.getDataDevolucaoPrevista().minusDays(7));
+            ultimoRenovaEmprestimo.setStatus(StatusEmprestimoEnum.ATIVO);
+            entityManager.merge(ultimoRenovaEmprestimo);
             entityManager.getTransaction().commit();
-            System.out.println("Renovação desfeita: ID " + ultimo.getId() +
-                    " | Data prevista restaurada: " + ultimo.getDataDevolucaoPrevista());
+            System.out.println("Renovação desfeita: ID " + ultimoRenovaEmprestimo.getId() +
+                    " | Data prevista restaurada: " + ultimoRenovaEmprestimo.getDataDevolucaoPrevista());
 
         } catch (Exception e) {
             if (entityManager.getTransaction().isActive())
@@ -229,15 +237,6 @@ public class UndoRedoService {
             // Valida se a multa ainda não foi quitada
             if (Boolean.TRUE.equals(ultimaMulta.getQuitada())) {
                 System.out.println("Não é possível desfazer: a multa já foi quitada.");
-                return;
-            }
-
-            // Valida se o empréstimo vinculado ainda está como devolvido
-            // Para desfazer a multa, primeiro é necessário desfazer a devolução
-            Emprestimo emprestimo = entityManager.find(Emprestimo.class, ultimaMulta.getEmprestimoId());
-            if (emprestimo != null && emprestimo.getStatus() == StatusEmprestimoEnum.DEVOLVIDO) {
-                System.out.println("Não é possível desfazer: o empréstimo ainda está como devolvido.");
-                System.out.println("Execute primeiro o desfazer devolução e depois o desfazer multa.");
                 return;
             }
 

@@ -14,10 +14,12 @@ import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+// Classe principal do sistema de biblioteca, responsável por inicializar e exibir o menu principal
 public class Main {
 
     private static Scanner scanner;
 
+    // Ponto de entrada do sistema, inicializa o scanner e gerencia o menu principal
     public static void main(String[] args) {
         configurarLogs();
         scanner = new Scanner(System.in, StandardCharsets.UTF_8);
@@ -29,7 +31,7 @@ public class Main {
 
         do {
             exibirMenu();
-            opcao = LerInteiro("Escolha uma opcao: ");
+            opcao = MenuUtil.lerInteiro(scanner, "Escolha uma opcao: ");
 
             switch (opcao) {
                 case 1 -> menuCategoria();
@@ -48,6 +50,7 @@ public class Main {
         scanner.close();
     }
 
+    // Suprime logs do Hibernate e JBoss para manter o console limpo durante a execução
     private static void configurarLogs() {
         Logger hibernateLogger = Logger.getLogger("org.hibernate");
         hibernateLogger.setLevel(Level.SEVERE);
@@ -58,6 +61,7 @@ public class Main {
         jbossLogger.setUseParentHandlers(false);
     }
 
+    // Exibe as opções disponíveis no menu principal do sistema
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Categoria");
@@ -71,49 +75,45 @@ public class Main {
         System.out.println("-------------------------------------");
     }
 
+    // Abre o menu de gerenciamento de categorias
     private static void menuCategoria() {
         MenuUtil.limparConsole();
         new CategoriaMenu(scanner);
     }
 
+    // Abre o menu de gerenciamento de usuários
     private static void menuUsuario() {
         MenuUtil.limparConsole();
         new UsuarioMenu(scanner);
     }
 
+    // Abre o menu de gerenciamento do catálogo de livros
     private static void menuCatalogo() {
         MenuUtil.limparConsole();
         new CatalogoMenu(scanner);
     }
 
+    // Abre o menu de gerenciamento de empréstimos
     private static void menuEmprestimo() {
         MenuUtil.limparConsole();
         new EmprestimoMenu(scanner);
     }
 
+    // Abre o menu de gerenciamento de reservas
     private static void menuReserva() {
         MenuUtil.limparConsole();
         new ReservaMenu(scanner);
     }
 
+    // Abre o menu de relatórios do sistema
     private static void menuRelatorio() {
         MenuUtil.limparConsole();
         new RelatorioMenu(scanner);
     }
 
+    // Abre o menu de operações de undo/redo
     private static void menuUndoRedo() {
         MenuUtil.limparConsole();
         new UndoRedoMenu(scanner);
-    }
-
-    private static Integer LerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor invalido. Digite um numero inteiro.");
-            }
-        }
     }
 }

@@ -148,18 +148,18 @@ public class ReservaService {
             }
 
             // Busca o usuário e o livro vinculados à reserva
-            Reserva proxima = reservas.get(0);
-            Usuario usuario = entityManager.find(Usuario.class, proxima.getUsuarioId());
-            Livro livro = entityManager.find(Livro.class, proxima.getIsbnLivro());
+            Reserva proximaReserva = reservas.get(0);
+            Usuario usuario = entityManager.find(Usuario.class, proximaReserva.getUsuarioId());
+            Livro livro = entityManager.find(Livro.class, proximaReserva.getIsbnLivro());
 
             // Exibe os dados do próximo da fila
             System.out.println("-------------------------------------");
             System.out.println("Próximo da fila:");
-            System.out.println("ID:              " + proxima.getId());
+            System.out.println("ID:              " + proximaReserva.getId());
             System.out.println("Usuário:         " + (usuario != null ? usuario.getNome() : "Não encontrado"));
             System.out.println("E-mail:          " + (usuario != null ? usuario.getEmail() : "Não encontrado"));
             System.out.println("Livro:           " + (livro != null ? livro.getTitulo() : "Não encontrado"));
-            System.out.println("Data da reserva: " + proxima.getDataReserva());
+            System.out.println("Data da reserva: " + proximaReserva.getDataReserva());
             System.out.println("-------------------------------------");
 
             // Cria e persiste uma notificação para o usuário caso os dados estejam disponíveis
@@ -239,8 +239,7 @@ public class ReservaService {
         }
     }
 
-    // Retorna o próximo ID disponível para notificação usando o EntityManager já
-    // aberto
+    // Retorna o próximo ID disponível para notificação usando o EntityManager já aberto
     private Long getNextNotificacaoId(EntityManager entityManager) {
         Long maxId = entityManager.createQuery(
                 "SELECT MAX(n.id) FROM Notificacao n", Long.class).getSingleResult();

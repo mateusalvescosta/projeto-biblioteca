@@ -132,17 +132,16 @@ public class CatalogoService {
                 return;
             }
 
-            // Valida se não há exemplares desse livro com empréstimo ativo
-            Long emprestimosAtivos = entityManager.createQuery(
+            // Valida se não há exemplares desse livro com empréstimos no histórico
+            Long totalEmprestimos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE e.exemplar.livro.isbn = :isbn " +
-                            "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
+                            "WHERE e.exemplar.livro.isbn = :isbn",
                     Long.class)
                     .setParameter("isbn", isbn)
                     .getSingleResult();
 
-            if (emprestimosAtivos > 0) {
-                System.out.println("Não é possível remover: existem exemplares desse livro com empréstimo ativo.");
+            if (totalEmprestimos > 0) {
+                System.out.println("Não é possível remover: este livro possui histórico de empréstimos.");
                 return;
             }
 
@@ -188,17 +187,16 @@ public class CatalogoService {
                 return;
             }
 
-            // Valida se o exemplar não possui empréstimo ativo
-            Long emprestimosAtivos = entityManager.createQuery(
+            // Valida se o exemplar não possui nenhum empréstimo no histórico
+            Long totalEmprestimos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE e.exemplar.id = :id " +
-                            "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
+                            "WHERE e.exemplar.id = :id",
                     Long.class)
                     .setParameter("id", id)
                     .getSingleResult();
 
-            if (emprestimosAtivos > 0) {
-                System.out.println("Não é possível remover: este exemplar possui empréstimo ativo.");
+            if (totalEmprestimos > 0) {
+                System.out.println("Não é possível remover: este exemplar possui histórico de empréstimos.");
                 return;
             }
 
@@ -267,7 +265,8 @@ public class CatalogoService {
         }
     }
 
-    // Busca livros cujo título contenha o termo informado, sem distinção de maiúsculas
+    // Busca livros cujo título contenha o termo informado, sem distinção de
+    // maiúsculas
     public List<Livro> buscarLivrosPorTitulo(String titulo) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
