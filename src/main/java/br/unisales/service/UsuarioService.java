@@ -1,6 +1,7 @@
 package br.unisales.service;
 
 import br.unisales.database.table.Usuario;
+import br.unisales.service.util.ServiceUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
@@ -14,21 +15,17 @@ public class UsuarioService {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    /**
-     * Cadastra um novo usuário no sistema.
-     * O ID é gerado automaticamente com base no maior ID existente + 1.
-     * O campo 'bloqueado' é inicializado como false.
-     *
-     * @param usuario Objeto Usuario a ser persistido (sem ID definido).
-     */
+    // Cadastra um novo usuário gerando o ID automaticamente e inicializando como não bloqueado
     public void cadastrarUsuario(Usuario usuario) {
-        usuario.setId(this.getNextId() + 1);
+        // Gera o próximo ID disponível e define o status inicial como não bloqueado
+        usuario.setId(ServiceUtil.getNextId(this.entityManagerFactory, "SELECT MAX(u.id) FROM Usuario u"));
         usuario.setBloqueado(Boolean.FALSE);
 
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            // Persiste o novo usuário no banco
             transaction.begin();
             entityManager.persist(usuario);
             transaction.commit();
@@ -37,39 +34,30 @@ public class UsuarioService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-
-            Throwable causa = e;
-            while (causa.getCause() != null) {
-                causa = causa.getCause();
-            }
-
-            System.out.println("Erro ao cadastrar usuário: " + causa.getMessage());
+            System.out.println("Erro ao cadastrar usuário: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Alterna o estado de bloqueio de um usuário.
-     * Se estiver ativo, bloqueia. Se estiver bloqueado, desbloqueia.
-     *
-     * @param id ID do usuário a ser bloqueado ou desbloqueado.
-     */
-    public void bloquearDesbloquear(Long id) {
+    // Alterna o status de bloqueio do usuário entre bloqueado e desbloqueado
+    public void bloquearDesbloquearUsuario(Long id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            // Busca o usuário pelo ID e valida se existe
             Usuario usuario = entityManager.find(Usuario.class, id);
-
             if (usuario == null) {
                 System.out.println("Usuário não encontrado.");
                 return;
             }
 
+            // Inverte o status atual de bloqueio do usuário
             boolean novoStatus = !Boolean.TRUE.equals(usuario.getBloqueado());
             usuario.setBloqueado(novoStatus);
 
+            // Persiste a alteração no banco
             transaction.begin();
             entityManager.merge(usuario);
             transaction.commit();
@@ -80,65 +68,39 @@ public class UsuarioService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            System.out.println("Erro ao alterar status do usuário: " + e.getMessage());
+            System.out.println("Erro ao alterar status do usuário: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Lista todos os usuários cadastrados, ordenados por ID.
-     *
-     * @return Lista de todos os usuários.
-     */
-    public List<Usuario> listar() {
+    // Lista todos os usuários cadastrados ordenados por ID
+    public List<Usuario> listarUsuarios() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca todos os usuários ordenados pelo ID
             return entityManager
                     .createQuery("SELECT u FROM Usuario u ORDER BY u.id", Usuario.class)
                     .getResultList();
         } catch (Exception e) {
-            System.out.println("Erro ao listar usuários: " + e.getMessage());
+            System.out.println("Erro ao listar usuários: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Busca um usuário pelo ID.
-     *
-     * @param id ID do usuário.
-     * @return O usuário encontrado ou null se não existir.
-     */
-    public Usuario buscarPorId(Long id) {
+    // Busca um usuário pelo ID
+    public Usuario buscarUsuarioPorId(Long id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca o usuário diretamente pelo ID
             return entityManager.find(Usuario.class, id);
         } catch (Exception e) {
-            System.out.println("Erro ao buscar usuário por ID: " + e.getMessage());
+            System.out.println("Erro ao buscar usuário por ID: " + ServiceUtil.extrairMensagemErro(e));
             return null;
         } finally {
             entityManager.close();
-        }
-    }
-
-    /**
-     * Retorna o próximo ID disponível baseado no maior ID existente na tabela.
-     */
-    private Long getNextId() {
-        EntityManager em = this.entityManagerFactory.createEntityManager();
-        try {
-            Long maxId = em.createQuery(
-                    "SELECT MAX(u.id) FROM Usuario u",
-                    Long.class
-            ).getSingleResult();
-            return maxId != null ? maxId : 0L;
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return 0L;
-        } finally {
-            em.close();
         }
     }
 }
