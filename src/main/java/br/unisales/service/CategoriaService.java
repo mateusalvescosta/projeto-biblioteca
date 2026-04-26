@@ -1,6 +1,7 @@
 package br.unisales.service;
 
 import br.unisales.database.table.Categoria;
+import br.unisales.service.util.ServiceUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
@@ -15,8 +16,10 @@ public class CategoriaService {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    public void inserir(Categoria categoria) {
-        categoria.setId(Long.valueOf(this.getNextId() + 1));
+    // Insere uma nova categoria no banco de dados
+    public void inserirCategoria(Categoria categoria) {
+        // Gera o próximo ID disponível para a categoria
+        categoria.setId(Long.valueOf(ServiceUtil.getNextId(entityManagerFactory, "SELECT MAX(c.id) FROM Categoria c")));
 
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
@@ -30,48 +33,48 @@ public class CategoriaService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-
-            Throwable causa = e;
-            while (causa.getCause() != null) {
-                causa = causa.getCause();
-            }
-
-            System.out.println("Erro ao inserir categoria: " + causa.getMessage());
+            System.out.println("Erro ao inserir categoria: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    public List<Categoria> listarTodos() {
+    // Lista todas as categorias cadastradas ordenadas por nome
+    public List<Categoria> listarTodasCategorias() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca todas as categorias ordenadas pelo nome
             return entityManager
                     .createQuery("SELECT c FROM Categoria c ORDER BY c.nome", Categoria.class)
                     .getResultList();
         } catch (Exception e) {
-            System.out.println("Erro ao listar categorias: " + e.getMessage());
+            System.out.println("Erro ao listar categorias: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();
         }
     }
 
-    public Categoria buscarPorId(Integer id) {
+    // Busca uma categoria pelo ID
+    public Categoria buscarCategoriaPorId(Integer id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca a categoria diretamente pelo ID
             return entityManager.find(Categoria.class, id);
         } catch (Exception e) {
-            System.out.println("Erro ao buscar categoria por ID: " + e.getMessage());
+            System.out.println("Erro ao buscar categoria por ID: " + ServiceUtil.extrairMensagemErro(e));
             return null;
         } finally {
             entityManager.close();
         }
     }
 
-    public void atualizar(Categoria categoria) {
+    // Atualiza os dados de uma categoria existente
+    public void atualizarCategoria(Categoria categoria) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
         try {
+            // Persiste as alterações da categoria no banco
             transaction.begin();
             entityManager.merge(categoria);
             transaction.commit();
@@ -80,22 +83,25 @@ public class CategoriaService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            System.out.println("Erro ao atualizar categoria: " + e.getMessage());
+            System.out.println("Erro ao atualizar categoria: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    public void deletar(Integer id) {
+    // Remove uma categoria pelo ID, validando vínculos ativos antes de excluir
+    public void deletarCategoria(Integer id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
         try {
+            // Busca a categoria pelo ID
             Categoria categoria = entityManager.find(Categoria.class, id);
             if (categoria == null) {
                 System.out.println("Categoria nao encontrada para exclusao.");
                 return;
             }
 
+            // Valida se não há livros dessa categoria com empréstimo ativo
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE (e.status = 'ATIVO' OR e.status = 'RENOVADO') " +
@@ -112,7 +118,7 @@ public class CategoriaService {
                 return;
             }
 
-            // Verifica se existe alguma reserva pendente para livros dessa categoria
+            // Valida se não há livros dessa categoria com reserva pendente
             Long reservasPendentes = entityManager.createQuery(
                     "SELECT COUNT(r) FROM Reserva r " +
                             "WHERE r.isbnLivro IN (" +
@@ -128,6 +134,7 @@ public class CategoriaService {
                 return;
             }
 
+            // Remove a categoria do banco
             transaction.begin();
             entityManager.remove(categoria);
             transaction.commit();
@@ -136,24 +143,10 @@ public class CategoriaService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            System.out.println("Erro ao remover categoria: " + e.getMessage());
+            System.out.println("Erro ao remover categoria: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    private Long getNextId() {
-        EntityManager em = this.entityManagerFactory.createEntityManager();
-        try {
-            Long maxId = em.createQuery(
-                    "SELECT MAX(c.id) FROM Categoria c",
-                    Long.class).getSingleResult();
-            return maxId != null ? maxId : 0;
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar maior ID: " + e.getMessage());
-            return 0L;
-        } finally {
-            em.close();
-        }
-    }
 }

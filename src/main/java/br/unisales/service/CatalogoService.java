@@ -6,8 +6,9 @@ import br.unisales.database.table.Exemplar;
 import br.unisales.database.table.Livro;
 import br.unisales.database.table.LivroAutor;
 import br.unisales.database.table.LivroCategoria;
-import br.unisales.database.table.primery_key.LivroAutorId;
-import br.unisales.database.table.primery_key.LivroCategoriaId;
+import br.unisales.database.table.primary_key.LivroAutorId;
+import br.unisales.database.table.primary_key.LivroCategoriaId;
+import br.unisales.service.util.ServiceUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
@@ -22,9 +23,7 @@ public class CatalogoService {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    /**
-     * Cadastra um novo livro no catálogo.
-     */
+    // Cadastra um novo livro no catálogo junto com seu autor e categoria
     public void cadastrarLivro(Livro livro, String nomeAutor, String nomeCategoria) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
@@ -32,13 +31,14 @@ public class CatalogoService {
         try {
             transaction.begin();
 
-            // Verifica categoria
+            // Busca a categoria pelo nome informado
             List<Categoria> categorias = entityManager.createQuery(
                     "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
                     Categoria.class)
                     .setParameter("nome", nomeCategoria)
                     .getResultList();
 
+            // Valida se a categoria existe
             if (categorias.isEmpty()) {
                 transaction.rollback();
                 System.out.println("Categoria não encontrada: " + nomeCategoria);
@@ -47,19 +47,18 @@ public class CatalogoService {
 
             Categoria categoria = categorias.get(0);
 
-            // Verifica se autor já existe, senão cria
+            // Busca o autor pelo nome informado
             List<Autor> autores = entityManager.createQuery(
                     "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
                     Autor.class)
                     .setParameter("nome", nomeAutor)
                     .getResultList();
 
+            // Cria o autor se não existir, ou reutiliza o existente
             Autor autor;
             if (autores.isEmpty()) {
-                Long maxId = entityManager.createQuery(
-                        "SELECT MAX(a.id) FROM Autor a", Long.class).getSingleResult();
                 autor = Autor.builder()
-                        .id(maxId != null ? maxId + 1 : 1L)
+                        .id(ServiceUtil.getNextId(this.entityManagerFactory, "SELECT MAX(a.id) FROM Autor a"))
                         .nome(nomeAutor)
                         .build();
                 entityManager.persist(autor);
@@ -69,6 +68,7 @@ public class CatalogoService {
                 System.out.println("Autor já existe, associando: " + autor.getNome());
             }
 
+            // Persiste o livro e cria as associações com autor e categoria
             entityManager.persist(livro);
 
             entityManager.persist(LivroAutor.builder()
@@ -90,27 +90,20 @@ public class CatalogoService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            Throwable causa = e;
-            while (causa.getCause() != null) {
-                causa = causa.getCause();
-            }
-            System.out.println("Erro ao cadastrar livro: " + causa.getMessage());
+            System.out.println("Erro ao cadastrar livro: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Cadastra um novo exemplar vinculado a um livro existente.
-     */
+    // Cadastra um novo exemplar vinculado a um livro existente
     public void cadastrarExemplar(Exemplar exemplar) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
-            Long maxId = entityManager.createQuery(
-                    "SELECT MAX(e.id) FROM Exemplar e", Long.class).getSingleResult();
-            exemplar.setId(maxId != null ? maxId + 1 : 1L);
+            // Gera o próximo ID disponível para o exemplar
+            exemplar.setId(ServiceUtil.getNextId(this.entityManagerFactory, "SELECT MAX(e.id) FROM Exemplar e"));
 
             transaction.begin();
             entityManager.persist(exemplar);
@@ -120,31 +113,26 @@ public class CatalogoService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            Throwable causa = e;
-            while (causa.getCause() != null) {
-                causa = causa.getCause();
-            }
-            System.out.println("Erro ao cadastrar exemplar: " + causa.getMessage());
+            System.out.println("Erro ao cadastrar exemplar: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Remove um livro pelo ISBN (e seus exemplares em cascata).
-     */
+    // Remove um livro pelo ISBN e seus exemplares em cascata
     public void removerLivro(String isbn) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            // Busca o livro pelo ISBN
             Livro livro = entityManager.find(Livro.class, isbn);
             if (livro == null) {
                 System.out.println("Livro não encontrado.");
                 return;
             }
 
-            // Verifica se existe algum exemplar desse livro com empréstimo ativo
+            // Valida se não há exemplares desse livro com empréstimo ativo
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.exemplar.livro.isbn = :isbn " +
@@ -158,7 +146,7 @@ public class CatalogoService {
                 return;
             }
 
-            // Verifica se existe alguma reserva pendente para esse livro
+            // Valida se não há reservas pendentes para o livro
             Long reservasPendentes = entityManager.createQuery(
                     "SELECT COUNT(r) FROM Reserva r " +
                             "WHERE r.isbnLivro = :isbn " +
@@ -172,6 +160,7 @@ public class CatalogoService {
                 return;
             }
 
+            // Remove o livro do banco
             transaction.begin();
             entityManager.remove(livro);
             transaction.commit();
@@ -180,27 +169,26 @@ public class CatalogoService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            System.out.println("Erro ao remover livro: " + e.getMessage());
+            System.out.println("Erro ao remover livro: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Remove um exemplar pelo ID.
-     */
+    // Remove um exemplar pelo ID
     public void removerExemplar(Long id) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+            // Busca o exemplar pelo ID
             Exemplar exemplar = entityManager.find(Exemplar.class, id);
             if (exemplar == null) {
                 System.out.println("Exemplar não encontrado.");
                 return;
             }
 
-            // Verifica se esse exemplar possui empréstimo ativo
+            // Valida se o exemplar não possui empréstimo ativo
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.exemplar.id = :id " +
@@ -214,7 +202,7 @@ public class CatalogoService {
                 return;
             }
 
-            // Verifica se existe alguma reserva pendente para o livro desse exemplar.
+            // Valida se não há reservas pendentes para o livro deste exemplar
             Long reservasPendentes = entityManager.createQuery(
                     "SELECT COUNT(r) FROM Reserva r " +
                             "WHERE r.isbnLivro = :isbn " +
@@ -228,6 +216,7 @@ public class CatalogoService {
                 return;
             }
 
+            // Remove o exemplar do banco
             transaction.begin();
             entityManager.remove(exemplar);
             transaction.commit();
@@ -236,18 +225,17 @@ public class CatalogoService {
             if (transaction.isActive()) {
                 transaction.rollback();
             }
-            System.out.println("Erro ao remover exemplar: " + e.getMessage());
+            System.out.println("Erro ao remover exemplar: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Busca um livro pelo ISBN exato.
-     */
-    public Livro buscarPorIsbn(String isbn) {
+    // Busca um livro pelo ISBN exato carregando autores e categorias
+    public Livro buscarLivroPorIsbn(String isbn) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca o livro com seus autores
             List<Livro> resultado = entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l " +
                             "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
@@ -261,6 +249,7 @@ public class CatalogoService {
 
             Livro livro = resultado.get(0);
 
+            // Segunda query para carregar as categorias do livro
             entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l " +
                             "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
@@ -271,20 +260,18 @@ public class CatalogoService {
 
             return livro;
         } catch (Exception e) {
-            System.out.println("Erro ao buscar livro por ISBN: " + e.getMessage());
+            System.out.println("Erro ao buscar livro por ISBN: " + ServiceUtil.extrairMensagemErro(e));
             return null;
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Busca livros cujo título contenha o termo informado (busca parcial,
-     * case-insensitive).
-     */
-    public List<Livro> buscarPorTitulo(String titulo) {
+    // Busca livros cujo título contenha o termo informado, sem distinção de maiúsculas
+    public List<Livro> buscarLivrosPorTitulo(String titulo) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca os livros com seus autores pelo título parcial
             List<Livro> livros = entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l " +
                             "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
@@ -293,6 +280,7 @@ public class CatalogoService {
                     .setParameter("titulo", "%" + titulo + "%")
                     .getResultList();
 
+            // Segunda query para carregar as categorias dos livros encontrados
             entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l " +
                             "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
@@ -303,25 +291,24 @@ public class CatalogoService {
 
             return livros;
         } catch (Exception e) {
-            System.out.println("Erro ao buscar livro por título: " + e.getMessage());
+            System.out.println("Erro ao buscar livro por título: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Lista todos os livros com seus autores carregados.
-     */
-    public List<Livro> listar() {
+    // Lista todos os livros cadastrados com seus autores e categorias carregados
+    public List<Livro> listarLivros() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca todos os livros com seus autores
             List<Livro> livros = entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor",
                     Livro.class)
                     .getResultList();
 
-            // Segunda query para carregar as categorias
+            // Segunda query para carregar as categorias de todos os livros
             entityManager.createQuery(
                     "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria",
                     Livro.class)
@@ -329,25 +316,24 @@ public class CatalogoService {
 
             return livros;
         } catch (Exception e) {
-            System.out.println("Erro ao listar livros: " + e.getMessage());
+            System.out.println("Erro ao listar livros: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();
         }
     }
 
-    /**
-     * Lista todos os exemplares de um livro pelo ISBN.
-     */
+    // Lista todos os exemplares de um livro pelo ISBN
     public List<Exemplar> listarExemplares(String isbn) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
+            // Busca os exemplares ordenados por ID
             return entityManager
                     .createQuery("SELECT e FROM Exemplar e WHERE e.livro.isbn = :isbn ORDER BY e.id", Exemplar.class)
                     .setParameter("isbn", isbn)
                     .getResultList();
         } catch (Exception e) {
-            System.out.println("Erro ao listar exemplares: " + e.getMessage());
+            System.out.println("Erro ao listar exemplares: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();

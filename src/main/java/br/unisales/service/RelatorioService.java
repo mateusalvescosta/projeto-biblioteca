@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 
+import br.unisales.service.util.ServiceUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 
@@ -18,10 +19,12 @@ public class RelatorioService {
         this.entityManagerFactory = entityManagerFactory;
     }
 
-    public void topMaisEmprestados() {
+    // Exibe os 10 livros mais emprestados em ordem decrescente
+    public void topLivrosMaisEmprestados() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
 
         try {
+            // Busca os livros agrupados por título e ordenados pela quantidade de empréstimos
             List<Object[]> resultado = entityManager.createQuery(
                     "SELECT l.titulo, COUNT(e) " +
                             "FROM Emprestimo e " +
@@ -38,6 +41,7 @@ public class RelatorioService {
                 return;
             }
 
+            // Exibe o ranking com posição e quantidade de empréstimos
             System.out.println("=== TOP LIVROS MAIS EMPRESTADOS ===");
             int posicao = 1;
             for (Object[] linha : resultado) {
@@ -45,25 +49,19 @@ public class RelatorioService {
                 posicao++;
             }
 
-        }
-
-        catch (Exception e) {
-            Throwable causa = e;
-            while (causa.getCause() != null)
-                causa = causa.getCause();
-            System.out.println("Erro ao gerar relatório: " + causa.getMessage());
-        }
-
-        finally {
+        } catch (Exception e) {
+            System.out.println("Erro ao gerar relatório: " + ServiceUtil.extrairMensagemErro(e));
+        } finally {
             entityManager.close();
         }
-
     }
 
-    public void emAtraso() {
+    // Exibe todos os empréstimos com prazo vencido e ainda não devolvidos
+    public void emprestimosEmAtraso() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
 
         try {
+            // Busca empréstimos sem devolução e com prazo anterior à data atual
             List<Object[]> resultado = entityManager.createQuery(
                     "SELECT u.nome, l.titulo, e.dataDevolucaoPrevista " +
                             "FROM Emprestimo e " +
@@ -81,28 +79,27 @@ public class RelatorioService {
                 return;
             }
 
+            // Exibe o nome do usuário, título do livro e quantidade de dias em atraso
             System.out.println("=== EMPRÉSTIMOS EM ATRASO ===");
             for (Object[] linha : resultado) {
                 LocalDateTime dataPrevista = (LocalDateTime) linha[2];
                 long diasAtraso = ChronoUnit.DAYS.between(dataPrevista, LocalDateTime.now());
-                System.out
-                        .println("Usuário: " + linha[0] + " | Livro: " + linha[1] + " | Dias em atraso: " + diasAtraso);
+                System.out.println("Usuário: " + linha[0] + " | Livro: " + linha[1] + " | Dias em atraso: " + diasAtraso);
             }
 
         } catch (Exception e) {
-            Throwable causa = e;
-            while (causa.getCause() != null)
-                causa = causa.getCause();
-            System.out.println("Erro ao gerar relatório de atrasos: " + causa.getMessage());
+            System.out.println("Erro ao gerar relatório de atrasos: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
+    // Exibe os usuários com maior quantidade de empréstimos em atraso
     public void usuariosComMaisAtrasos() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
 
         try {
+            // Busca usuários com empréstimos vencidos, agrupados e ordenados por quantidade
             List<Object[]> resultado = entityManager.createQuery(
                     "SELECT u.nome, COUNT(e) " +
                             "FROM Emprestimo e " +
@@ -119,33 +116,33 @@ public class RelatorioService {
                 return;
             }
 
+            // Exibe o nome do usuário e a quantidade de atrasos
             System.out.println("=== USUÁRIOS COM MAIS ATRASOS ===");
             for (Object[] linha : resultado) {
                 System.out.println("Usuário: " + linha[0] + " | Atrasos: " + linha[1]);
             }
 
         } catch (Exception e) {
-            Throwable causa = e;
-            while (causa.getCause() != null)
-                causa = causa.getCause();
-            System.out.println("Erro ao gerar relatório de atrasos: " + causa.getMessage());
+            System.out.println("Erro ao gerar relatório de atrasos: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
     }
 
+    // Exibe as estatísticas de movimentação do mês atual
     public void estatisticasMensais() {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
 
         try {
             LocalDate agora = LocalDate.now();
             int anoAtual = agora.getYear();
-
             String mesNome = agora.format(DateTimeFormatter.ofPattern("MMMM", new Locale("pt", "BR")));
 
+            // Define o intervalo de datas do mês atual
             LocalDateTime inicioDomes = agora.withDayOfMonth(1).atStartOfDay();
             LocalDateTime fimDoMes = agora.withDayOfMonth(agora.lengthOfMonth()).atTime(23, 59, 59);
 
+            // Conta os empréstimos realizados no mês
             Long totalEmprestimos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.dataEmprestimo BETWEEN :inicio AND :fim",
@@ -154,6 +151,7 @@ public class RelatorioService {
                     .setParameter("fim", fimDoMes)
                     .getSingleResult();
 
+            // Conta as devoluções realizadas no mês
             Long totalDevolucoes = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.dataDevolucao IS NOT NULL " +
@@ -163,6 +161,7 @@ public class RelatorioService {
                     .setParameter("fim", fimDoMes)
                     .getSingleResult();
 
+            // Conta os empréstimos do mês ainda sem devolução
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.dataEmprestimo BETWEEN :inicio AND :fim " +
@@ -172,6 +171,7 @@ public class RelatorioService {
                     .setParameter("fim", fimDoMes)
                     .getSingleResult();
 
+            // Conta todos os empréstimos com prazo vencido e sem devolução
             Long emprestimosEmAtraso = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
                             "WHERE e.dataDevolucao IS NULL " +
@@ -180,6 +180,7 @@ public class RelatorioService {
                     .setParameter("hoje", LocalDateTime.now())
                     .getSingleResult();
 
+            // Exibe o resumo das estatísticas do mês
             System.out.println("\n=== MOVIMENTAÇÃO DO MÊS - " + mesNome.toUpperCase() + "/" + anoAtual + " ===");
             System.out.println("  Empréstimos realizados: " + totalEmprestimos);
             System.out.println("  Devoluções realizadas:  " + totalDevolucoes);
@@ -187,10 +188,7 @@ public class RelatorioService {
             System.out.println("  Empréstimos em atraso:  " + emprestimosEmAtraso);
 
         } catch (Exception e) {
-            Throwable causa = e;
-            while (causa.getCause() != null)
-                causa = causa.getCause();
-            System.out.println("Erro ao gerar estatísticas mensais: " + causa.getMessage());
+            System.out.println("Erro ao gerar estatísticas mensais: " + ServiceUtil.extrairMensagemErro(e));
         } finally {
             entityManager.close();
         }
