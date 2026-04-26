@@ -14,19 +14,20 @@ import br.unisales.service.EmprestimoService;
 public final class EmprestimoMenu {
     private final Scanner scanner;
 
+    // Inicializa o menu de empréstimos e gerencia o fluxo de interação com o usuário
     public EmprestimoMenu(Scanner scanner) {
         this.scanner = scanner;
         System.out.println("==========================================");
         System.out.println("   SISTEMA DE EMPRÉSTIMOS COM JPA         ");
         System.out.println("==========================================");
 
-        ManagerFactory emf = new ManagerFactory("SQLitePU");
-        EmprestimoService emprestimoService = new EmprestimoService(emf.get());
+        ManagerFactory managerFactory = new ManagerFactory("SQLitePU");
+        EmprestimoService emprestimoService = new EmprestimoService(managerFactory.get());
 
         int opcao;
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opção: ");
+            opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
                 case 1 -> emprestarExemplar(emprestimoService);
@@ -39,9 +40,10 @@ public final class EmprestimoMenu {
             }
             System.out.println();
         } while (opcao != 100);
-        emf.close();
+        managerFactory.close();
     }
 
+    // Exibe as opções disponíveis no menu de empréstimos
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Realizar empréstimo");
@@ -53,19 +55,22 @@ public final class EmprestimoMenu {
         System.out.println("-------------------------------------");
     }
 
+    // Coleta o ID do usuário e do exemplar e aciona o empréstimo com prazo de 7 dias
     private void emprestarExemplar(EmprestimoService emprestimoService) {
         MenuUtil.limparConsole();
         System.out.println("=== REALIZAR EMPRÉSTIMO ===");
 
-        Long usuarioId = lerLong("Informe o ID do usuário: ");
-        Long exemplarId = lerLong("Informe o ID do exemplar: ");
+        Long usuarioId = MenuUtil.lerLong(this.scanner, "Informe o ID do usuário: ");
+        Long exemplarId = MenuUtil.lerLong(this.scanner, "Informe o ID do exemplar: ");
 
+        // Monta os objetos de referência com os IDs informados
         Usuario usuario = new Usuario();
         usuario.setId(usuarioId);
 
         Exemplar exemplar = new Exemplar();
         exemplar.setId(exemplarId);
 
+        // Cria o empréstimo com data atual e prazo de devolução de 7 dias
         Emprestimo emprestimo = Emprestimo.builder()
                 .usuario(usuario)
                 .exemplar(exemplar)
@@ -77,51 +82,34 @@ public final class EmprestimoMenu {
         emprestimoService.emprestarExemplar(emprestimo);
     }
 
+    // Coleta o ID do empréstimo e aciona a devolução do exemplar
     private void devolverExemplar(EmprestimoService emprestimoService) {
         MenuUtil.limparConsole();
         System.out.println("=== DEVOLVER EXEMPLAR ===");
-        Long emprestimoId = lerLong("Informe o ID do empréstimo: ");
+        Long emprestimoId = MenuUtil.lerLong(this.scanner, "Informe o ID do empréstimo: ");
         emprestimoService.devolverExemplar(emprestimoId);
     }
 
+    // Coleta o ID do empréstimo e aciona a renovação do prazo
     private void renovarEmprestimo(EmprestimoService emprestimoService) {
         MenuUtil.limparConsole();
         System.out.println("=== RENOVAR EMPRÉSTIMO ===");
-        Long emprestimoId = lerLong("Informe o ID do empréstimo: ");
+        Long emprestimoId = MenuUtil.lerLong(this.scanner, "Informe o ID do empréstimo: ");
         emprestimoService.renovarExemplar(emprestimoId);
     }
 
+    // Coleta o ID do empréstimo e aciona o cálculo e registro da multa
     private void calcularMulta(EmprestimoService emprestimoService) {
         MenuUtil.limparConsole();
         System.out.println("=== CALCULAR MULTA ===");
-        Long emprestimoId = lerLong("Informe o ID do empréstimo: ");
+        Long emprestimoId = MenuUtil.lerLong(this.scanner, "Informe o ID do empréstimo: ");
         emprestimoService.calcularMulta(emprestimoId);
     }
 
-    private Integer lerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private Long lerLong(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Long.parseLong(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
+    // Exibe todos os empréstimos ativos, renovados ou atrasados
     private static void listarEmprestimos(EmprestimoService emprestimoService) {
-    MenuUtil.limparConsole();
-    System.out.println("=== LISTAR EMPRÉSTIMOS ===");
-    emprestimoService.listar();
+        MenuUtil.limparConsole();
+        System.out.println("=== LISTAR EMPRÉSTIMOS ===");
+        emprestimoService.listarEmprestimos();
     }
 }

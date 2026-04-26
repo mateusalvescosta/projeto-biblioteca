@@ -12,20 +12,21 @@ import br.unisales.service.ReservaService;
 public final class ReservaMenu {
     private final Scanner scanner;
 
+    // Inicializa o menu de reservas e gerencia o fluxo de interação com o usuário
     public ReservaMenu(Scanner scanner) {
         this.scanner = scanner;
         System.out.println("==========================================");
         System.out.println("   SISTEMA DE RESERVAS COM JPA            ");
         System.out.println("==========================================");
 
-        ManagerFactory emf = new ManagerFactory("SQLitePU");
-        ReservaService reservaService = new ReservaService(emf.get());
-        CatalogoService catalogoService = new CatalogoService(emf.get());
+        ManagerFactory managerFactory = new ManagerFactory("SQLitePU");
+        ReservaService reservaService = new ReservaService(managerFactory.get());
+        CatalogoService catalogoService = new CatalogoService(managerFactory.get());
 
         int opcao;
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opção: ");
+            opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
                 case 1 -> reservarLivro(reservaService, catalogoService);
@@ -37,9 +38,10 @@ public final class ReservaMenu {
             }
             System.out.println();
         } while (opcao != 100);
-        emf.close();
+        managerFactory.close();
     }
 
+    // Exibe as opções disponíveis no menu de reservas
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Reservar livro");
@@ -50,22 +52,24 @@ public final class ReservaMenu {
         System.out.println("-------------------------------------");
     }
 
+    // Busca o livro pelo ISBN, coleta o ID do usuário e aciona a reserva
     private void reservarLivro(ReservaService reservaService, CatalogoService catalogoService) {
         MenuUtil.limparConsole();
         System.out.println("=== RESERVAR LIVRO ===");
-        String isbn = lerTexto("Informe o ISBN do livro: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN do livro: ");
 
-        Livro livro = catalogoService.buscarPorIsbn(isbn);
+        // Valida se o livro existe antes de prosseguir
+        Livro livro = catalogoService.buscarLivroPorIsbn(isbn);
         if (livro == null) {
             System.out.println("Livro não encontrado.");
             return;
         }
 
         System.out.println("Livro encontrado: " + livro.getTitulo());
-        Long usuarioId = lerLong("Informe o ID do usuário: ");
+        Long usuarioId = MenuUtil.lerLong(this.scanner, "Informe o ID do usuário: ");
 
+        // Monta a reserva apenas com os dados coletados, sem gerar ID no menu
         Reserva reserva = Reserva.builder()
-                .id(reservaService.getNextId())
                 .usuarioId(usuarioId)
                 .isbnLivro(isbn)
                 .build();
@@ -73,11 +77,14 @@ public final class ReservaMenu {
         reservaService.reservarLivro(reserva);
     }
 
+    // Coleta o ID da reserva e solicita confirmação antes de cancelá-la
     private void cancelarReserva(ReservaService reservaService) {
         MenuUtil.limparConsole();
         System.out.println("=== CANCELAR RESERVA ===");
-        Long id = lerLong("Informe o ID da reserva: ");
-        String confirmacao = lerTexto("Deseja realmente cancelar esta reserva? (S/N): ");
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID da reserva: ");
+
+        // Solicita confirmação do usuário antes de cancelar
+        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente cancelar esta reserva? (S/N): ");
         if (confirmacao.equalsIgnoreCase("S")) {
             reservaService.cancelarReserva(id);
         } else {
@@ -85,44 +92,19 @@ public final class ReservaMenu {
         }
     }
 
+    // Coleta o ISBN e exibe o próximo usuário da fila de reservas do livro
     private void atenderProximaReserva(ReservaService reservaService) {
         MenuUtil.limparConsole();
         System.out.println("=== ATENDER PRÓXIMA RESERVA ===");
-        String isbn = lerTexto("Informe o ISBN do livro: ");
+        String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN do livro: ");
         reservaService.atenderProximaReserva(isbn);
     }
 
+    // Coleta o título e exibe as reservas encontradas para o livro informado
     private void buscarReservas(ReservaService reservaService) {
         MenuUtil.limparConsole();
         System.out.println("=== BUSCAR RESERVAS ===");
-        String titulo = lerTexto("Informe o título do livro (ou parte dele): ");
-        reservaService.buscarPorTituloLivro(titulo);
-    }
-
-    private Integer lerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private Long lerLong(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Long.parseLong(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private String lerTexto(String mensagem) {
-        System.out.print(mensagem);
-        return this.scanner.nextLine();
+        String titulo = MenuUtil.lerTexto(this.scanner, "Informe o título do livro (ou parte dele): ");
+        reservaService.buscarReservaPorTituloLivro(titulo);
     }
 }

@@ -1,6 +1,20 @@
 package br.unisales.Enumeration;
 
+// Enum que representa os possíveis status de um empréstimo
 public enum StatusEmprestimoEnum {
-    ATIVO, DEVOLVIDO, ATRASADO,
-    RENOVADO, CANCELADO;
+
+    // Empréstimo em andamento dentro do prazo
+    ATIVO,
+
+    // Exemplar devolvido pelo usuário
+    DEVOLVIDO,
+
+    // Empréstimo com prazo de devolução vencido
+    ATRASADO,
+
+    // Empréstimo com prazo estendido por mais 7 dias
+    RENOVADO,
+
+    // Empréstimo cancelado antes da devolução
+    CANCELADO;
 }
