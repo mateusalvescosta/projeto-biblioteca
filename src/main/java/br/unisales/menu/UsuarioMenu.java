@@ -12,31 +12,33 @@ import br.unisales.service.UsuarioService;
 public final class UsuarioMenu {
     private final Scanner scanner;
 
+    // Inicializa o menu de usuários e gerencia o fluxo de interação com o usuário
     public UsuarioMenu(Scanner scanner) {
         this.scanner = scanner;
         System.out.println("==========================================");
         System.out.println("   SISTEMA DE CRUD DE USUÁRIO COM JPA     ");
         System.out.println("==========================================");
-        ManagerFactory emf = new ManagerFactory("SQLitePU");
-        UsuarioService usuarioService = new UsuarioService(emf.get());
+        ManagerFactory managerFactory = new ManagerFactory("SQLitePU");
+        UsuarioService usuarioService = new UsuarioService(managerFactory.get());
         int opcao;
         do {
             exibirMenu();
-            opcao = lerInteiro("Escolha uma opção: ");
+            opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
-                case 1 -> cadastrar(usuarioService);
-                case 2 -> listar(usuarioService);
-                case 3 -> buscarPorId(usuarioService);
-                case 4 -> bloquearDesbloquear(usuarioService);
+                case 1 -> cadastrarUsuario(usuarioService);
+                case 2 -> listarUsuarios(usuarioService);
+                case 3 -> buscarUsuarioPorId(usuarioService);
+                case 4 -> bloquearDesbloquearUsuario(usuarioService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
             System.out.println();
         } while (opcao != 100);
-        emf.close();
+        managerFactory.close();
     }
 
+    // Exibe as opções disponíveis no menu de usuários
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
         System.out.println("1 - Cadastrar usuário");
@@ -47,14 +49,16 @@ public final class UsuarioMenu {
         System.out.println("-------------------------------------");
     }
 
-    private void cadastrar(UsuarioService usuarioService) {
+    // Coleta os dados do usuário, define o tipo e aciona o cadastro
+    private void cadastrarUsuario(UsuarioService usuarioService) {
         MenuUtil.limparConsole();
         System.out.println("=== CADASTRAR USUÁRIO ===");
-        String nome = this.lerTexto("Informe o nome: ");
-        String email = this.lerTexto("Informe o e-mail: ");
-        String senha = this.lerTexto("Informe senha: ");
-        String tipo = this.lerTexto("Informe o tipo (ALUNO, PROFESSOR, SERVIDOR): ");
+        String nome = MenuUtil.lerTexto(this.scanner, "Informe o nome: ");
+        String email = MenuUtil.lerTexto(this.scanner, "Informe o e-mail: ");
+        String senha = MenuUtil.lerTexto(this.scanner, "Informe senha: ");
+        String tipo = MenuUtil.lerTexto(this.scanner, "Informe o tipo (ALUNO, PROFESSOR, SERVIDOR): ");
 
+        // Converte o tipo informado para o enum correspondente, usando ALUNO como padrão
         UsuarioTipoEnum stn;
         if (tipo.equalsIgnoreCase("professor"))
             stn = UsuarioTipoEnum.PROFESSOR;
@@ -73,14 +77,16 @@ public final class UsuarioMenu {
         usuarioService.cadastrarUsuario(item);
     }
 
-    private static void listar(UsuarioService usuarioService) {
+    // Lista e exibe todos os usuários cadastrados com seus dados e status
+    private static void listarUsuarios(UsuarioService usuarioService) {
         MenuUtil.limparConsole();
         System.out.println("=== LISTAR USUÁRIOS ===");
-        List<Usuario> lista = usuarioService.listar();
+        List<Usuario> lista = usuarioService.listarUsuarios();
         if (lista.isEmpty()) {
             System.out.println("Nenhum usuário cadastrado.");
             return;
         }
+        // Exibe os dados de cada usuário encontrado
         for (Usuario item : lista) {
             System.out.println("-------------------------------------");
             System.out.println("ID: " + item.getId());
@@ -92,15 +98,20 @@ public final class UsuarioMenu {
         System.out.println("-------------------------------------");
     }
 
-    private void buscarPorId(UsuarioService usuarioService) {
+    // Busca e exibe os dados de um usuário pelo ID informado
+    private void buscarUsuarioPorId(UsuarioService usuarioService) {
         MenuUtil.limparConsole();
         System.out.println("=== BUSCAR USUÁRIO POR ID ===");
-        Long id = this.lerLong("Informe o ID do usuário: ");
-        Usuario item = usuarioService.buscarPorId(id);
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID do usuário: ");
+
+        // Valida se o usuário existe antes de exibir os dados
+        Usuario item = usuarioService.buscarUsuarioPorId(id);
         if (item == null) {
             System.out.println("Usuário não encontrado.");
             return;
         }
+
+        // Exibe os dados completos do usuário encontrado
         System.out.println("-------------------------------------");
         System.out.println("ID: " + item.getId());
         System.out.println("Nome: " + item.getNome());
@@ -110,37 +121,11 @@ public final class UsuarioMenu {
         System.out.println("-------------------------------------");
     }
 
-    private void bloquearDesbloquear(UsuarioService usuarioService) {
+    // Coleta o ID do usuário e aciona a alternância do status de bloqueio
+    private void bloquearDesbloquearUsuario(UsuarioService usuarioService) {
         MenuUtil.limparConsole();
         System.out.println("=== BLOQUEAR / DESBLOQUEAR USUÁRIO ===");
-        Long id = this.lerLong("Informe o ID do usuário: ");
-        usuarioService.bloquearDesbloquear(id);
-    }
-
-    private Integer lerInteiro(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Integer.parseInt(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private Long lerLong(String mensagem) {
-        while (true) {
-            try {
-                System.out.print(mensagem);
-                return Long.parseLong(this.scanner.nextLine());
-            } catch (NumberFormatException e) {
-                System.out.println("Valor inválido. Digite um número inteiro.");
-            }
-        }
-    }
-
-    private String lerTexto(String mensagem) {
-        System.out.print(mensagem);
-        return this.scanner.nextLine();
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID do usuário: ");
+        usuarioService.bloquearDesbloquearUsuario(id);
     }
 }
