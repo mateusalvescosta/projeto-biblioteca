@@ -31,6 +31,13 @@ public class CatalogoService {
         try {
             transaction.begin();
 
+            // Verifica se já existe um livro com o mesmo ISBN
+            if (entityManager.find(Livro.class, livro.getIsbn()) != null) {
+                transaction.rollback();
+                System.out.println("Já existe um livro cadastrado com o ISBN \"" + livro.getIsbn() + "\".");
+                return;
+            }
+
             // Busca a categoria pelo nome informado
             List<Categoria> categorias = entityManager.createQuery(
                     "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
