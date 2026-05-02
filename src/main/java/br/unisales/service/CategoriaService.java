@@ -25,6 +25,19 @@ public class CategoriaService {
         EntityTransaction transaction = entityManager.getTransaction();
 
         try {
+
+            // Verifica se já existe uma categoria com o mesmo nome (case-insensitive)
+            Long count = entityManager.createQuery(
+                    "SELECT COUNT(c) FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
+                    Long.class)
+                    .setParameter("nome", categoria.getNome())
+                    .getSingleResult();
+
+            if (count > 0) {
+                System.out.println("Já existe uma categoria com o nome \"" + categoria.getNome() + "\".");
+                return;
+            }
+
             transaction.begin();
             entityManager.persist(categoria);
             transaction.commit();
