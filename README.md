@@ -1,6 +1,7 @@
 # Sistema de Gerenciamento de Biblioteca
 
 **Disciplina:** Construção em Estruturas de Dados / Projeto e Qualidade em Engenharia de Software
+
 **Grupo:** Arthur Yuji Mendes Suzuki, Carlos Eduardo Pisa Meireles, Felipe Souza de Jesus e Mateus Alves Costa
 
 
