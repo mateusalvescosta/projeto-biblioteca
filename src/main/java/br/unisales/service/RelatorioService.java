@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 
+import br.unisales.Enumeration.StatusEmprestimoEnum;
 import br.unisales.service.util.ServiceUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -157,18 +158,17 @@ public class RelatorioService {
                             "WHERE e.dataDevolucao IS NOT NULL " +
                             "AND e.dataDevolucao BETWEEN :inicio AND :fim",
                     Long.class)
-                    .setParameter("inicio", inicioDomes)
-                    .setParameter("fim", fimDoMes)
+                    .setParameter("inicio", agora.withDayOfMonth(1).atStartOfDay())
+                    .setParameter("fim", agora.withDayOfMonth(agora.lengthOfMonth()).atTime(23, 59, 59))
                     .getSingleResult();
 
-            // Conta os empréstimos do mês ainda sem devolução
+            // Conta todos os empréstimos ativos ou renovados independente do mês
             Long emprestimosAtivos = entityManager.createQuery(
                     "SELECT COUNT(e) FROM Emprestimo e " +
-                            "WHERE e.dataEmprestimo BETWEEN :inicio AND :fim " +
-                            "AND e.dataDevolucao IS NULL",
+                            "WHERE e.status = :ativo OR e.status = :renovado",
                     Long.class)
-                    .setParameter("inicio", inicioDomes)
-                    .setParameter("fim", fimDoMes)
+                    .setParameter("ativo", StatusEmprestimoEnum.ATIVO)
+                    .setParameter("renovado", StatusEmprestimoEnum.RENOVADO)
                     .getSingleResult();
 
             // Conta todos os empréstimos com prazo vencido e sem devolução
