@@ -272,8 +272,7 @@ public class CatalogoService {
         }
     }
 
-    // Busca livros cujo título contenha o termo informado, sem distinção de
-    // maiúsculas
+    // Busca livros cujo título contenha o termo informado, sem distinção de maiúsculas
     public List<Livro> buscarLivrosPorTitulo(String titulo) {
         EntityManager entityManager = this.entityManagerFactory.createEntityManager();
         try {
@@ -340,6 +339,52 @@ public class CatalogoService {
                     .getResultList();
         } catch (Exception e) {
             System.out.println("Erro ao listar exemplares: " + ServiceUtil.extrairMensagemErro(e));
+            return List.of();
+        } finally {
+            entityManager.close();
+        }
+    }
+
+    // Atualiza o nome de um autor existente pelo ID
+    public void atualizarAutor(Long id, String novoNome) {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+        EntityTransaction transaction = entityManager.getTransaction();
+
+        try {
+            // Busca o autor pelo ID e valida se existe
+            Autor autor = entityManager.find(Autor.class, id);
+            if (autor == null) {
+                System.out.println("Autor não encontrado.");
+                return;
+            }
+
+            // Atualiza o nome do autor e persiste a alteração
+            transaction.begin();
+            autor.setNome(novoNome);
+            entityManager.merge(autor);
+            transaction.commit();
+            System.out.println("Autor atualizado com sucesso.");
+        } catch (Exception e) {
+            if (transaction.isActive()) {
+                transaction.rollback();
+            }
+            System.out.println("Erro ao atualizar autor: " + ServiceUtil.extrairMensagemErro(e));
+        } finally {
+            entityManager.close();
+        }
+    }
+
+    // Busca autores cujo nome contenha o termo informado, sem distinção de maiúsculas
+    public List<Autor> buscarAutoresPorNome(String nome) {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+        try {
+            return entityManager.createQuery(
+                    "SELECT a FROM Autor a WHERE LOWER(a.nome) LIKE LOWER(:nome) ORDER BY a.nome",
+                    Autor.class)
+                    .setParameter("nome", "%" + nome + "%")
+                    .getResultList();
+        } catch (Exception e) {
+            System.out.println("Erro ao buscar autores por nome: " + ServiceUtil.extrairMensagemErro(e));
             return List.of();
         } finally {
             entityManager.close();

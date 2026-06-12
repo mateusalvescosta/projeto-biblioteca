@@ -33,6 +33,7 @@ public final class ReservaMenu {
                 case 2 -> cancelarReserva(reservaService);
                 case 3 -> atenderProximaReserva(reservaService);
                 case 4 -> buscarReservas(reservaService);
+                case 5 -> listarNotificacoes(reservaService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
@@ -48,6 +49,7 @@ public final class ReservaMenu {
         System.out.println("2 - Cancelar reserva");
         System.out.println("3 - Atender próxima reserva");
         System.out.println("4 - Buscar reservas por livro");
+        System.out.println("5 - Listar notificações");
         System.out.println("100 - Voltar");
         System.out.println("-------------------------------------");
     }
@@ -106,5 +108,12 @@ public final class ReservaMenu {
         System.out.println("=== BUSCAR RESERVAS ===");
         String titulo = MenuUtil.lerTexto(this.scanner, "Informe o título do livro (ou parte dele): ");
         reservaService.buscarReservaPorTituloLivro(titulo);
+    }
+
+    // Exibe todas as notificações registradas no sistema
+    private static void listarNotificacoes(ReservaService reservaService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== LISTAR NOTIFICAÇÕES ===");
+        reservaService.listarNotificacoes();
     }
 }

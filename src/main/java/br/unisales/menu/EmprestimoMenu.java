@@ -35,6 +35,7 @@ public final class EmprestimoMenu {
                 case 3 -> renovarEmprestimo(emprestimoService);
                 case 4 -> calcularMulta(emprestimoService);
                 case 5 -> listarEmprestimos(emprestimoService);
+                case 6 -> listarMultas(emprestimoService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
@@ -51,6 +52,7 @@ public final class EmprestimoMenu {
         System.out.println("3 - Renovar empréstimo");
         System.out.println("4 - Calcular multa");
         System.out.println("5 - Listar empréstimos");
+        System.out.println("6 - Listar multas");
         System.out.println("100 - Voltar");
         System.out.println("-------------------------------------");
     }
@@ -111,5 +113,12 @@ public final class EmprestimoMenu {
         MenuUtil.limparConsole();
         System.out.println("=== LISTAR EMPRÉSTIMOS ===");
         emprestimoService.listarEmprestimos();
+    }
+
+    // Exibe todas as multas registradas no sistema
+    private static void listarMultas(EmprestimoService emprestimoService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== LISTAR MULTAS ===");
+        emprestimoService.listarMultas();
     }
 }
