@@ -222,7 +222,6 @@ public class CatalogoServiceTest {
                                 .thenReturn(queryDeContagemDeEmprestimo);
                 when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(3L);
 
-    
                 lenient().when(entityManager.createQuery(
                                 "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
                                 Long.class))
@@ -596,5 +595,74 @@ public class CatalogoServiceTest {
                 List<Exemplar> exemplaresRetornados = catalogoService.listarExemplares("978-0000");
 
                 assertTrue(exemplaresRetornados.isEmpty());
+        }
+
+        // =====================================================================
+        // atualizarAutor
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve atualizar autor quando ele não existe no banco")
+        void naoDeveAtualizarAutorQuandoEleNaoExisteNoBanco() {
+                when(entityManager.find(Autor.class, 1L)).thenReturn(null);
+
+                catalogoService.atualizarAutor(1L, "Novo Nome");
+
+                verify(entityManager, never()).merge(any(Autor.class));
+                verify(entityTransaction, never()).begin();
+        }
+
+        @Test
+        @DisplayName("Deve atualizar o nome do autor quando ele existe no banco")
+        void deveAtualizarNomeDoAutorQuandoEleExisteNoBanco() {
+                Autor autorExistente = Autor.builder().id(1L).nome("Nome Antigo").build();
+
+                when(entityManager.find(Autor.class, 1L)).thenReturn(autorExistente);
+
+                catalogoService.atualizarAutor(1L, "Nome Novo");
+
+                assertEquals("Nome Novo", autorExistente.getNome());
+                verify(entityTransaction).begin();
+                verify(entityManager).merge(autorExistente);
+                verify(entityTransaction).commit();
+        }
+
+        // =====================================================================
+        // buscarAutoresPorNome
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve retornar lista vazia quando nenhum autor corresponder ao nome informado")
+        void deveRetornarListaVaziaQuandoNenhumAutorCorresponderAoNomeInformado() {
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) LIKE LOWER(:nome) ORDER BY a.nome",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "%Inexistente%")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
+
+                List<Autor> resultado = catalogoService.buscarAutoresPorNome("Inexistente");
+
+                assertTrue(resultado.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Deve retornar autores cujo nome contenha o termo informado")
+        void deveRetornarAutoresCujoNomeContenhaOTermoInformado() {
+                Autor primeiroAutor = Autor.builder().id(1L).nome("Machado de Assis").build();
+                Autor segundoAutor = Autor.builder().id(2L).nome("Maria Machado").build();
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) LIKE LOWER(:nome) ORDER BY a.nome",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "%Machado%")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(List.of(primeiroAutor, segundoAutor));
+
+                List<Autor> resultado = catalogoService.buscarAutoresPorNome("Machado");
+
+                assertEquals(2, resultado.size());
+                assertEquals("Machado de Assis", resultado.get(0).getNome());
+                assertEquals("Maria Machado", resultado.get(1).getNome());
         }
 }
