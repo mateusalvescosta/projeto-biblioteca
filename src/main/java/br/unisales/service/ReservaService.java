@@ -239,6 +239,39 @@ public class ReservaService {
         }
     }
 
+    // Lista todas as notificações registradas, indicando se já foram lidas
+    public void listarNotificacoes() {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+        try {
+            // Busca todas as notificações ordenadas por ID
+            List<Notificacao> notificacoes = entityManager
+                    .createQuery("SELECT n FROM Notificacao n ORDER BY n.id", Notificacao.class)
+                    .getResultList();
+
+            if (notificacoes.isEmpty()) {
+                System.out.println("Nenhuma notificação registrada.");
+                return;
+            }
+
+            // Exibe os dados de cada notificação encontrada
+            for (Notificacao notificacao : notificacoes) {
+                Usuario usuario = entityManager.find(Usuario.class, notificacao.getUsuarioId());
+
+                System.out.println("-------------------------------------");
+                System.out.println("ID:       " + notificacao.getId());
+                System.out.println("Usuário:  " + (usuario != null ? usuario.getNome() : "Não encontrado"));
+                System.out.println("Mensagem: " + notificacao.getMensagem());
+                System.out.println("Data:     " + notificacao.getDataCriacao());
+                System.out.println("Status:   " + (Boolean.TRUE.equals(notificacao.getLida()) ? "LIDA" : "NÃO LIDA"));
+            }
+            System.out.println("-------------------------------------");
+        } catch (Exception e) {
+            System.out.println("Erro ao listar notificações: " + ServiceUtil.extrairMensagemErro(e));
+        } finally {
+            entityManager.close();
+        }
+    }
+
     // Retorna o próximo ID disponível para notificação usando o EntityManager já aberto
     private Long getNextNotificacaoId(EntityManager entityManager) {
         Long maxId = entityManager.createQuery(

@@ -339,4 +339,38 @@ public class EmprestimoService {
         }
     }
 
+    // Lista todas as multas registradas, indicando se já foram quitadas
+    public void listarMultas() {
+        EntityManager entityManager = this.entityManagerFactory.createEntityManager();
+
+        try {
+            // Busca todas as multas ordenadas por ID
+            List<Multa> multas = entityManager
+                    .createQuery("SELECT m FROM Multa m ORDER BY m.id", Multa.class)
+                    .getResultList();
+
+            if (multas.isEmpty()) {
+                System.out.println("Nenhuma multa registrada.");
+                return;
+            }
+
+            // Exibe os dados de cada multa encontrada
+            for (Multa multa : multas) {
+                System.out.println("-------------------------------------");
+                System.out.println("ID:             " + multa.getId());
+                System.out.println("Empréstimo ID:  " + multa.getEmprestimoId());
+                System.out.println("Valor:          R$ " + multa.getValor());
+                System.out.println("Dias de atraso: " + multa.getDiasAtraso());
+                System.out.println(
+                        "Status:         " + (Boolean.TRUE.equals(multa.getQuitada()) ? "QUITADA" : "PENDENTE"));
+            }
+            System.out.println("-------------------------------------");
+
+        } catch (Exception e) {
+            System.out.println("Erro ao listar multas: " + ServiceUtil.extrairMensagemErro(e));
+        } finally {
+            entityManager.close();
+        }
+    }
+
 }

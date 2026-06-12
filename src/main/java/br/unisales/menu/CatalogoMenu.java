@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
+import br.unisales.database.table.Autor;
 import br.unisales.database.table.Exemplar;
 import br.unisales.database.table.Livro;
 import br.unisales.manager_factory.ManagerFactory;
@@ -33,10 +34,12 @@ public final class CatalogoMenu {
                 case 2 -> cadastrarExemplar(catalogoService);
                 case 3 -> removerLivro(catalogoService);
                 case 4 -> removerExemplar(catalogoService);
-                case 5 -> buscarLivroPorIsbn(catalogoService);
-                case 6 -> buscarLivroPorTitulo(catalogoService);
-                case 7 -> listarLivros(catalogoService);
-                case 8 -> listarExemplares(catalogoService);
+                case 5 -> atualizarAutor(catalogoService);
+                case 6 -> buscarLivroPorIsbn(catalogoService);
+                case 7 -> buscarLivroPorTitulo(catalogoService);
+                case 8 -> buscarAutoresPorNome(catalogoService);
+                case 9 -> listarLivros(catalogoService);
+                case 10 -> listarExemplares(catalogoService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
@@ -52,10 +55,12 @@ public final class CatalogoMenu {
         System.out.println("2 - Cadastrar exemplar");
         System.out.println("3 - Remover livro");
         System.out.println("4 - Remover exemplar");
-        System.out.println("5 - Buscar livro por ISBN");
-        System.out.println("6 - Buscar livro por título");
-        System.out.println("7 - Listar todos os livros");
-        System.out.println("8 - Listar exemplares de um livro");
+        System.out.println("5 - Atualizar autor");
+        System.out.println("6 - Buscar livro por ISBN");
+        System.out.println("7 - Buscar livro por título");
+        System.out.println("8 - Buscar autor por nome");
+        System.out.println("9 - Listar todos os livros");
+        System.out.println("10 - Listar exemplares de um livro");
         System.out.println("100 - Voltar");
         System.out.println("-------------------------------------");
     }
@@ -66,7 +71,8 @@ public final class CatalogoMenu {
         System.out.println("=== CADASTRAR LIVRO ===");
         String isbn = MenuUtil.lerTexto(this.scanner, "Informe o ISBN: ");
         String titulo = MenuUtil.lerTexto(this.scanner, "Informe o título: ");
-        String recebeAno = MenuUtil.lerTexto(this.scanner, "Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
+        String recebeAno = MenuUtil.lerTexto(this.scanner,
+                "Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
 
         // Tenta converter o ano informado, ignorando o campo em caso de formato inválido
         LocalDate ano = null;
@@ -125,7 +131,8 @@ public final class CatalogoMenu {
 
         // Solicita confirmação do usuário antes de remover
         System.out.println("Livro encontrado: " + livro.getTitulo());
-        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente remover este livro e todos os seus exemplares? (S/N): ");
+        String confirmacao = MenuUtil.lerTexto(this.scanner,
+                "Deseja realmente remover este livro e todos os seus exemplares? (S/N): ");
         if (confirmacao.equalsIgnoreCase("S")) {
             catalogoService.removerLivro(isbn);
         } else {
@@ -237,5 +244,32 @@ public final class CatalogoMenu {
         }
 
         System.out.println("-------------------------------------");
+    }
+
+    // Coleta o ID do autor e o novo nome, e aciona a atualização
+    private void atualizarAutor(CatalogoService catalogoService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== ATUALIZAR AUTOR ===");
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID do autor: ");
+        String novoNome = MenuUtil.lerTexto(this.scanner, "Informe o novo nome do autor: ");
+        catalogoService.atualizarAutor(id, novoNome);
+    }
+
+    // Busca e exibe autores cujo nome contenha o termo informado
+    private void buscarAutoresPorNome(CatalogoService catalogoService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== BUSCAR AUTOR POR NOME ===");
+        String nome = MenuUtil.lerTexto(this.scanner, "Informe o nome (ou parte dele): ");
+        List<Autor> lista = catalogoService.buscarAutoresPorNome(nome);
+        if (lista.isEmpty()) {
+            System.out.println("Nenhum autor encontrado.");
+            return;
+        }
+        System.out.println("-------------------------------------");
+        for (Autor autor : lista) {
+            System.out.println("ID:   " + autor.getId());
+            System.out.println("Nome: " + autor.getNome());
+            System.out.println("-------------------------------------");
+        }
     }
 }
