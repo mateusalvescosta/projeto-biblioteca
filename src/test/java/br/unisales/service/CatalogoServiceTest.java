@@ -1,0 +1,600 @@
+package br.unisales.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Collections;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import br.unisales.database.table.Autor;
+import br.unisales.database.table.Categoria;
+import br.unisales.database.table.Exemplar;
+import br.unisales.database.table.Livro;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityTransaction;
+import jakarta.persistence.TypedQuery;
+
+@ExtendWith(MockitoExtension.class)
+public class CatalogoServiceTest {
+
+        @Mock
+        private EntityManagerFactory entityManagerFactory;
+
+        @Mock
+        private EntityManager entityManager;
+
+        @Mock
+        private EntityTransaction entityTransaction;
+
+        @Mock
+        private TypedQuery<Categoria> queryDeCategoria;
+
+        @Mock
+        private TypedQuery<Autor> queryDeAutor;
+
+        @Mock
+        private TypedQuery<Livro> queryDeLivro;
+
+        @Mock
+        private TypedQuery<Livro> queryDeLivroCategoria;
+
+        @Mock
+        private TypedQuery<Exemplar> queryDeExemplar;
+
+        @Mock
+        private TypedQuery<Long> queryDeContagemDeEmprestimo;
+
+        @Mock
+        private TypedQuery<Long> queryDeContagemDeReserva;
+
+        @Mock
+        private TypedQuery<Long> queryDeMaximoId;
+
+        private CatalogoService catalogoService;
+
+        @BeforeEach
+        void setUp() {
+                when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
+                lenient().when(entityManager.getTransaction()).thenReturn(entityTransaction);
+                catalogoService = new CatalogoService(entityManagerFactory);
+        }
+
+        // =====================================================================
+        // cadastrarLivro
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve persistir livro quando ISBN já está cadastrado")
+        void naoDevePersistirLivroQuandoIsbnJaEstaCadastrado() {
+                Livro livroJaExistente = Livro.builder().isbn("978-1111").titulo("Livro Existente").build();
+                Livro novoLivroComIsbnDuplicado = Livro.builder().isbn("978-1111").titulo("Outro Livro").build();
+
+                when(entityManager.find(Livro.class, "978-1111")).thenReturn(livroJaExistente);
+
+                catalogoService.cadastrarLivro(novoLivroComIsbnDuplicado, "Qualquer Autor", "Qualquer Categoria");
+
+                verify(entityManager, never()).persist(novoLivroComIsbnDuplicado);
+        }
+
+        @Test
+        @DisplayName("Não deve persistir livro quando categoria informada não existe no banco")
+        void naoDevePersistirLivroQuandoCategoriaNaoExisteNoBanco() {
+                Livro novoLivro = Livro.builder().isbn("978-2222").titulo("Livro Sem Categoria").build();
+
+                when(entityManager.find(Livro.class, "978-2222")).thenReturn(null);
+
+                when(entityManager.createQuery(
+                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
+                                Categoria.class))
+                                .thenReturn(queryDeCategoria);
+                when(queryDeCategoria.setParameter("nome", "Categoria Inexistente")).thenReturn(queryDeCategoria);
+                when(queryDeCategoria.getResultList()).thenReturn(Collections.emptyList());
+
+                catalogoService.cadastrarLivro(novoLivro, "Qualquer Autor", "Categoria Inexistente");
+
+                verify(entityManager, never()).persist(novoLivro);
+        }
+
+        @Test
+        @DisplayName("Deve criar autor novo e persistir livro quando autor não existe no banco")
+        void deveCriarAutorNovoEPersistirLivroQuandoAutorNaoExisteNoBanco() {
+                Livro novoLivro = Livro.builder().isbn("978-3333").titulo("Livro Com Autor Novo").build();
+                Categoria categoriaExistente = Categoria.builder().id(1L).nome("Tecnologia").build();
+
+                when(entityManager.find(Livro.class, "978-3333")).thenReturn(null);
+
+                when(entityManager.createQuery(
+                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
+                                Categoria.class))
+                                .thenReturn(queryDeCategoria);
+                when(queryDeCategoria.setParameter("nome", "Tecnologia")).thenReturn(queryDeCategoria);
+                when(queryDeCategoria.getResultList()).thenReturn(List.of(categoriaExistente));
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Novo")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
+
+                when(entityManager.createQuery("SELECT MAX(a.id) FROM Autor a", Long.class))
+                                .thenReturn(queryDeMaximoId);
+                when(queryDeMaximoId.getSingleResult()).thenReturn(5L);
+
+                catalogoService.cadastrarLivro(novoLivro, "Autor Novo", "Tecnologia");
+
+                verify(entityManager, atLeastOnce()).persist(novoLivro);
+                verify(entityManager, atLeastOnce()).persist(any(Autor.class));
+        }
+
+        @Test
+        @DisplayName("Deve reutilizar autor existente e persistir livro quando autor já está cadastrado")
+        void deveReutilizarAutorExistenteEPersistirLivroQuandoAutorJaEstaCadastrado() {
+                Livro novoLivro = Livro.builder().isbn("978-4444").titulo("Livro Com Autor Existente").build();
+                Categoria categoriaExistente = Categoria.builder().id(2L).nome("Ficção").build();
+                Autor autorJaExistente = Autor.builder().id(10L).nome("Autor Existente").build();
+
+                when(entityManager.find(Livro.class, "978-4444")).thenReturn(null);
+
+                when(entityManager.createQuery(
+                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
+                                Categoria.class))
+                                .thenReturn(queryDeCategoria);
+                when(queryDeCategoria.setParameter("nome", "Ficção")).thenReturn(queryDeCategoria);
+                when(queryDeCategoria.getResultList()).thenReturn(List.of(categoriaExistente));
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Existente")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(List.of(autorJaExistente));
+
+                catalogoService.cadastrarLivro(novoLivro, "Autor Existente", "Ficção");
+
+                verify(entityManager, atLeastOnce()).persist(novoLivro);
+                verify(entityManager, never()).persist(any(Autor.class));
+        }
+
+        // =====================================================================
+        // cadastrarExemplar
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve persistir exemplar e atribuir ID gerado quando todos os dados são válidos")
+        void devePersistirExemplarEAtribuirIdGeradoQuandoTodosOsDadosSaoValidos() {
+                Livro livroVinculado = Livro.builder().isbn("978-5555").titulo("Livro Base").build();
+                Exemplar novoExemplar = Exemplar.builder().livro(livroVinculado).build();
+
+                when(entityManager.createQuery("SELECT MAX(e.id) FROM Exemplar e", Long.class))
+                                .thenReturn(queryDeMaximoId);
+                when(queryDeMaximoId.getSingleResult()).thenReturn(3L);
+
+                catalogoService.cadastrarExemplar(novoExemplar);
+
+                verify(entityManager).persist(novoExemplar);
+                assertEquals(4L, novoExemplar.getId());
+        }
+
+        // =====================================================================
+        // removerLivro
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve remover livro quando ISBN não corresponde a nenhum registro")
+        void naoDeveRemoverLivroQuandoIsbnNaoCorrespondeANenhumRegistro() {
+                when(entityManager.find(Livro.class, "978-0000")).thenReturn(null);
+
+                catalogoService.removerLivro("978-0000");
+
+                verify(entityManager, never()).remove(any());
+        }
+
+        @Test
+        @DisplayName("Não deve remover livro quando existe histórico de empréstimos vinculado")
+        void naoDeveRemoverLivroQuandoExisteHistoricoDeEmprestimosVinculado() {
+                Livro livroComHistorico = Livro.builder().isbn("978-1234").titulo("Livro Com Histórico").build();
+
+                when(entityManager.find(Livro.class, "978-1234")).thenReturn(livroComHistorico);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(3L);
+
+    
+                lenient().when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+
+                catalogoService.removerLivro("978-1234");
+
+                verify(entityManager, never()).remove(livroComHistorico);
+        }
+
+        @Test
+        @DisplayName("Não deve remover livro quando existem reservas pendentes para ele")
+        void naoDeveRemoverLivroQuandoExistemReservasPendentesParaEle() {
+                Livro livroComReservas = Livro.builder().isbn("978-1234").titulo("Livro Com Reservas").build();
+
+                when(entityManager.find(Livro.class, "978-1234")).thenReturn(livroComReservas);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.getSingleResult()).thenReturn(2L);
+
+                catalogoService.removerLivro("978-1234");
+
+                verify(entityManager, never()).remove(livroComReservas);
+        }
+
+        @Test
+        @DisplayName("Deve remover livro quando não há empréstimos nem reservas pendentes")
+        void deveRemoverLivroQuandoNaoHaEmprestimosNemReservasPendentes() {
+                Livro livroSemVinculos = Livro.builder().isbn("978-9876").titulo("Livro Sem Vínculos").build();
+
+                when(entityManager.find(Livro.class, "978-9876")).thenReturn(livroSemVinculos);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("isbn", "978-9876"))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.setParameter("isbn", "978-9876"))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.getSingleResult()).thenReturn(0L);
+
+                catalogoService.removerLivro("978-9876");
+
+                verify(entityManager).remove(livroSemVinculos);
+        }
+
+        // =====================================================================
+        // removerExemplar
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve remover exemplar quando ID não corresponde a nenhum registro")
+        void naoDeveRemoverExemplarQuandoIdNaoCorrespondeANenhumRegistro() {
+                when(entityManager.find(Exemplar.class, 99L)).thenReturn(null);
+
+                catalogoService.removerExemplar(99L);
+
+                verify(entityManager, never()).remove(any());
+        }
+
+        @Test
+        @DisplayName("Não deve remover exemplar quando existe histórico de empréstimos vinculado a ele")
+        void naoDeveRemoverExemplarQuandoExisteHistoricoDeEmprestimosVinculadoAEle() {
+                Exemplar exemplarComHistorico = Exemplar.builder().id(1L).build();
+
+                when(entityManager.find(Exemplar.class, 1L)).thenReturn(exemplarComHistorico);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.id = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("id", 1L))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(5L);
+
+                lenient().when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+
+                catalogoService.removerExemplar(1L);
+
+                verify(entityManager, never()).remove(exemplarComHistorico);
+        }
+
+        @Test
+        @DisplayName("Não deve remover exemplar quando livro vinculado tem reservas pendentes")
+        void naoDeveRemoverExemplarQuandoLivroVinculadoTemReservasPendentes() {
+                Livro livroDoExemplar = Livro.builder().isbn("978-1234").build();
+                Exemplar exemplarComReservaNoLivro = Exemplar.builder().id(1L).livro(livroDoExemplar).build();
+
+                when(entityManager.find(Exemplar.class, 1L)).thenReturn(exemplarComReservaNoLivro);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.id = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("id", 1L))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.getSingleResult()).thenReturn(1L);
+
+                catalogoService.removerExemplar(1L);
+
+                verify(entityManager, never()).remove(exemplarComReservaNoLivro);
+        }
+
+        @Test
+        @DisplayName("Deve remover exemplar quando não há empréstimos nem reservas vinculados")
+        void deveRemoverExemplarQuandoNaoHaEmprestimosNemReservasVinculados() {
+                Livro livroDoExemplar = Livro.builder().isbn("978-5555").build();
+                Exemplar exemplarSemVinculos = Exemplar.builder().id(2L).livro(livroDoExemplar).build();
+
+                when(entityManager.find(Exemplar.class, 2L)).thenReturn(exemplarSemVinculos);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.id = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("id", 2L))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.isbnLivro = :isbn AND r.status = 'RESERVADO'",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.setParameter("isbn", "978-5555"))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.getSingleResult()).thenReturn(0L);
+
+                catalogoService.removerExemplar(2L);
+
+                verify(entityManager).remove(exemplarSemVinculos);
+        }
+
+        // =====================================================================
+        // buscarLivroPorIsbn
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve retornar livro quando ISBN corresponde a um registro existente")
+        void deveRetornarLivroQuandoIsbnCorrespondeAUmRegistroExistente() {
+                Livro livroEsperado = Livro.builder().isbn("978-7777").titulo("Livro Encontrado").build();
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
+                                                "WHERE l.isbn = :isbn",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.setParameter(eq("isbn"), any())).thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList()).thenReturn(List.of(livroEsperado));
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
+                                                "WHERE l.isbn = :isbn",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.setParameter(eq("isbn"), any())).thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.getResultList()).thenReturn(List.of(livroEsperado));
+
+                Livro livroRetornado = catalogoService.buscarLivroPorIsbn("978-7777");
+
+                assertNotNull(livroRetornado);
+                assertEquals("978-7777", livroRetornado.getIsbn());
+                assertEquals("Livro Encontrado", livroRetornado.getTitulo());
+        }
+
+        @Test
+        @DisplayName("Deve retornar null quando ISBN não corresponde a nenhum registro")
+        void deveRetornarNullQuandoIsbnNaoCorrespondeANenhumRegistro() {
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
+                                                "WHERE l.isbn = :isbn",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.setParameter(eq("isbn"), any())).thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList()).thenReturn(Collections.emptyList());
+
+                lenient().when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
+                                                "WHERE l.isbn = :isbn",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+
+                Livro livroRetornado = catalogoService.buscarLivroPorIsbn("000-0000");
+
+                assertNull(livroRetornado);
+        }
+
+        // =====================================================================
+        // buscarLivrosPorTitulo
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve retornar lista de livros quando título parcial corresponde a registros existentes")
+        void deveRetornarListaDeLivrosQuandoTituloParcialCorrespondeARegistrosExistentes() {
+                Livro primeiroLivro = Livro.builder().isbn("978-1000").titulo("Java na Prática").build();
+                Livro segundoLivro = Livro.builder().isbn("978-1001").titulo("Java Avançado").build();
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
+                                                "WHERE LOWER(l.titulo) LIKE LOWER(:titulo) ORDER BY l.titulo",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.setParameter(eq("titulo"), any())).thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList()).thenReturn(List.of(primeiroLivro, segundoLivro));
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
+                                                "WHERE LOWER(l.titulo) LIKE LOWER(:titulo)",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.setParameter(eq("titulo"), any())).thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.getResultList()).thenReturn(List.of(primeiroLivro, segundoLivro));
+
+                List<Livro> livrosRetornados = catalogoService.buscarLivrosPorTitulo("Java");
+
+                assertNotNull(livrosRetornados);
+                assertEquals(2, livrosRetornados.size());
+                assertEquals("Java na Prática", livrosRetornados.get(0).getTitulo());
+                assertEquals("Java Avançado", livrosRetornados.get(1).getTitulo());
+        }
+
+        @Test
+        @DisplayName("Deve retornar lista vazia quando nenhum título corresponde ao termo buscado")
+        void deveRetornarListaVaziaQuandoNenhumTituloCorrespondeAoTermoBuscado() {
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor " +
+                                                "WHERE LOWER(l.titulo) LIKE LOWER(:titulo) ORDER BY l.titulo",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.setParameter(eq("titulo"), any())).thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList()).thenReturn(Collections.emptyList());
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l " +
+                                                "LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria " +
+                                                "WHERE LOWER(l.titulo) LIKE LOWER(:titulo)",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.setParameter(eq("titulo"), any())).thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.getResultList()).thenReturn(Collections.emptyList());
+
+                List<Livro> livrosRetornados = catalogoService.buscarLivrosPorTitulo("Título Inexistente");
+
+                assertTrue(livrosRetornados.isEmpty());
+        }
+
+        // =====================================================================
+        // listarLivros
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve retornar todos os livros quando existem registros no banco")
+        void deveRetornarTodosOsLivrosQuandoExistemRegistrosNoBanco() {
+                Livro primeiroLivro = Livro.builder().isbn("978-2000").titulo("Livro A").build();
+                Livro segundoLivro = Livro.builder().isbn("978-2001").titulo("Livro B").build();
+                Livro terceiroLivro = Livro.builder().isbn("978-2002").titulo("Livro C").build();
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList())
+                                .thenReturn(List.of(primeiroLivro, segundoLivro, terceiroLivro));
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.getResultList())
+                                .thenReturn(List.of(primeiroLivro, segundoLivro, terceiroLivro));
+
+                List<Livro> livrosRetornados = catalogoService.listarLivros();
+
+                assertNotNull(livrosRetornados);
+                assertEquals(3, livrosRetornados.size());
+        }
+
+        @Test
+        @DisplayName("Deve retornar lista vazia quando não há livros cadastrados no banco")
+        void deveRetornarListaVaziaQuandoNaoHaLivrosCadastradosNoBanco() {
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroAutores la LEFT JOIN FETCH la.autor",
+                                Livro.class))
+                                .thenReturn(queryDeLivro);
+                when(queryDeLivro.getResultList()).thenReturn(Collections.emptyList());
+
+                when(entityManager.createQuery(
+                                "SELECT DISTINCT l FROM Livro l LEFT JOIN FETCH l.livroCategorias lc LEFT JOIN FETCH lc.categoria",
+                                Livro.class))
+                                .thenReturn(queryDeLivroCategoria);
+                when(queryDeLivroCategoria.getResultList()).thenReturn(Collections.emptyList());
+
+                List<Livro> livrosRetornados = catalogoService.listarLivros();
+
+                assertTrue(livrosRetornados.isEmpty());
+        }
+
+        // =====================================================================
+        // listarExemplares
+        // =====================================================================
+
+        @Test
+        @DisplayName("Deve retornar lista de exemplares quando existem exemplares cadastrados para o ISBN")
+        void deveRetornarListaDeExemplaresQuandoExistemExemplaresCadastradosParaOIsbn() {
+                Livro livroBase = Livro.builder().isbn("978-3000").titulo("Livro Base").build();
+                Exemplar primeiroExemplar = Exemplar.builder().id(1L).livro(livroBase).build();
+                Exemplar segundoExemplar = Exemplar.builder().id(2L).livro(livroBase).build();
+
+                when(entityManager.createQuery(
+                                "SELECT e FROM Exemplar e WHERE e.livro.isbn = :isbn ORDER BY e.id",
+                                Exemplar.class))
+                                .thenReturn(queryDeExemplar);
+                when(queryDeExemplar.setParameter("isbn", "978-3000")).thenReturn(queryDeExemplar);
+                when(queryDeExemplar.getResultList()).thenReturn(List.of(primeiroExemplar, segundoExemplar));
+
+                List<Exemplar> exemplaresRetornados = catalogoService.listarExemplares("978-3000");
+
+                assertNotNull(exemplaresRetornados);
+                assertEquals(2, exemplaresRetornados.size());
+                assertEquals(1L, exemplaresRetornados.get(0).getId());
+                assertEquals(2L, exemplaresRetornados.get(1).getId());
+        }
+
+        @Test
+        @DisplayName("Deve retornar lista vazia quando não há exemplares cadastrados para o ISBN")
+        void deveRetornarListaVaziaQuandoNaoHaExemplaresCadastradosParaOIsbn() {
+                when(entityManager.createQuery(
+                                "SELECT e FROM Exemplar e WHERE e.livro.isbn = :isbn ORDER BY e.id",
+                                Exemplar.class))
+                                .thenReturn(queryDeExemplar);
+                when(queryDeExemplar.setParameter("isbn", "978-0000")).thenReturn(queryDeExemplar);
+                when(queryDeExemplar.getResultList()).thenReturn(Collections.emptyList());
+
+                List<Exemplar> exemplaresRetornados = catalogoService.listarExemplares("978-0000");
+
+                assertTrue(exemplaresRetornados.isEmpty());
+        }
+}
