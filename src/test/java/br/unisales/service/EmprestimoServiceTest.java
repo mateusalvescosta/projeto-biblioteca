@@ -1,5 +1,20 @@
 package br.unisales.service;
 
+/**
+ * Sistema de Gerenciamento de Biblioteca
+ *
+ * Disciplina: Construção em Estruturas de Dados / Projeto e Qualidade
+ *             em Engenharia de Software
+ * Professor:  Vito Franzosi
+ * Período:    Terceiro
+ *
+ * Grupo:
+ *   - Arthur Yuji Mendes Suzuki
+ *   - Carlos Eduardo Pisa Meireles
+ *   - Felipe Souza de Jesus
+ *   - Mateus Alves Costa
+ */
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
