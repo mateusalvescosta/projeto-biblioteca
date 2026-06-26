@@ -1,5 +1,20 @@
 package br.unisales.database.table;
 
+/**
+ * Sistema de Gerenciamento de Biblioteca
+ *
+ * Disciplina: Construção em Estruturas de Dados / Projeto e Qualidade
+ *             em Engenharia de Software
+ * Professor:  Vito Franzosi
+ * Período:    Terceiro
+ *
+ * Grupo:
+ *   - Arthur Yuji Mendes Suzuki
+ *   - Carlos Eduardo Pisa Meireles
+ *   - Felipe Souza de Jesus
+ *   - Mateus Alves Costa
+ */
+
 import java.time.LocalDateTime;
 
 import br.unisales.Enumeration.StatusReservaEnum;

@@ -7,7 +7,7 @@
 
 ## O que é o sistema?
 
-Sistema de gerenciamento de biblioteca com interface via terminal, desenvolvido em Java com JPA + Hibernate e SQLite como banco de dados. O sistema cobre o ciclo completo de uma biblioteca: cadastro de livros, autores, categorias e exemplares; controle de empréstimos com renovação e devolução; fila de reservas com notificação automática ao próximo da fila; geração de multa por atraso; relatórios gerenciais; e um módulo de Undo/Redo para reverter operações sem fluxo de exclusão equivalente. O banco de dados é criado automaticamente na primeira execução via `hbm2ddl.auto=update`, sem necessidade de scripts SQL.
+Sistema de gerenciamento de biblioteca com interface via terminal, desenvolvido em Java com JPA + Hibernate e SQLite como banco de dados. O sistema cobre o ciclo completo de uma biblioteca: cadastro, atualização, remoção e busca de autores, livros, categorias e exemplares; controle de empréstimos com renovação e devolução; fila de reservas com notificação automática ao próximo da fila; geração de multa por atraso; relatórios gerenciais; e um módulo de Undo/Redo para reverter operações sem fluxo de exclusão equivalente. As consultas do acervo permitem buscar livro por ISBN, livro por título e autor por nome. Toda a camada de regras de negócio é coberta por testes unitários com JUnit 5 e Mockito. O banco de dados é criado automaticamente na primeira execução via `hbm2ddl.auto=update`, sem necessidade de scripts SQL.
 
 
 ## Stack Tecnológica
@@ -28,6 +28,8 @@ Sistema de gerenciamento de biblioteca com interface via terminal, desenvolvido 
 | `sqlite-jdbc` | 3.45.1.0 | Driver JDBC do SQLite |
 | `slf4j-simple` | 1.7.36 | Log de saída simplificado |
 | `lombok` | 1.18.32 | Redução de boilerplate |
+| `junit-jupiter` | 5.x | Framework de testes unitários (JUnit 5) |
+| `mockito-junit-jupiter` | 5.x | Criação de mocks e integração do Mockito com o JUnit 5 |
 
 
 ## Estrutura de Pacotes
@@ -66,7 +68,7 @@ A arquitetura segue o padrão **Menu → Service → EntityManager**: os menus s
 | `Usuario` | `usuario` | Usuário da biblioteca |
 | `Emprestimo` | `emprestimo` | Registro de empréstimo de um exemplar a um usuário |
 | `Reserva` | `reserva` | Reserva de um livro, formando fila de espera (FIFO) |
-| `Multa` | `multa` | Multa por atraso na devolução — R$ 2,00/dia |
+| `Multa` | `multa` | Multa por atraso na devolução, a R$ 2,00 por dia |
 | `Notificacao` | `notificacao` | Aviso gerado ao próximo da fila quando um exemplar é devolvido |
 
 ### Enumerações
@@ -81,10 +83,17 @@ A arquitetura segue o padrão **Menu → Service → EntityManager**: os menus s
 
 ## Regras de Negócio
 
+**Catálogo**
+- O cadastro de autor valida duplicidade de nome de forma case-insensitive antes de persistir.
+- O cadastro de livro exige um autor já existente, não criando autores automaticamente, e resolve o autor antes da categoria.
+- A remoção de livro é bloqueada quando ainda existem exemplares vinculados, evitando registros órfãos.
+- A remoção de autor é bloqueada quando ainda existem livros vinculados a ele.
+- A atualização de autor valida duplicidade de nome contra os demais registros, ignorando o próprio autor sendo editado.
+
 **Empréstimo**
 - Usuário bloqueado não pode realizar empréstimo.
 - Exemplar deve estar com status `DISPONIVEL`.
-- Se houver fila de reserva ativa para o livro, apenas o primeiro da fila pode receber o exemplar — o sistema informa o nome e e-mail do usuário prioritário caso outro tente realizar o empréstimo.
+- Se houver fila de reserva ativa para o livro, apenas o primeiro da fila pode receber o exemplar, e o sistema informa o nome e e-mail do usuário prioritário caso outro tente realizar o empréstimo.
 - Ao registrar o empréstimo, a reserva ativa do usuário (se existir) é automaticamente marcada como `ATENDIDA`.
 - Prazo padrão de devolução: 7 dias.
 
@@ -104,6 +113,19 @@ A arquitetura segue o padrão **Menu → Service → EntityManager**: os menus s
 
 **Usuários**
 - O campo `bloqueado` é definido como `false` via `@PrePersist` no momento do cadastro.
+
+
+## Testes
+
+A camada de services é coberta por testes unitários com **JUnit 5** e **Mockito**, organizados em uma classe de teste por service (`CatalogoServiceTest`, `EmprestimoServiceTest`, `ReservaServiceTest`, `UsuarioServiceTest`, `CategoriaServiceTest`, `RelatorioServiceTest` e `UndoRedoServiceTest`).
+
+Toda a interação com o `EntityManager` é simulada por mocks, isolando as regras de negócio do banco real. Cada consulta JPQL distinta recebe seu próprio mock de `TypedQuery`, evitando conflito de stubs, e os testes verificam strings de query e parâmetros exatos em vez de matchers genéricos, priorizando especificidade. Por trabalhar com mocks, essa suíte não exercita sintaxe JPQL real nem o comportamento de integridade referencial do SQLite, o que torna os testes de integração um complemento previsto para a evolução do projeto.
+
+Para rodar os testes:
+
+```bash
+mvn test
+```
 
 
 ## Configuração do Banco de Dados
@@ -166,7 +188,7 @@ Na primeira execução o Hibernate gera automaticamente todas as tabelas no arqu
 
 ### Critério para escolha das operações desfeitas
 
-O módulo de Undo/Redo cobre apenas operações que não possuem uma operação de exclusão direta equivalente no sistema. Cadastrar categoria, livro ou exemplar já possuem seus respectivos métodos de remoção nos menus — o undo dessas ações seria redundante. As operações cobertas foram:
+O módulo de Undo/Redo cobre apenas operações que não possuem uma operação de exclusão direta equivalente no sistema. Cadastrar categoria, livro ou exemplar já possuem seus respectivos métodos de remoção nos menus, de modo que o undo dessas ações seria redundante. As operações cobertas foram:
 
 | Operação | Motivo |
 |---|---|
@@ -176,11 +198,3 @@ O módulo de Undo/Redo cobre apenas operações que não possuem uma operação 
 | `desfazerRenovar` | Não há como desfazer uma extensão de prazo pelos menus |
 | `desfazerMulta` | Não há exclusão de multa nos menus convencionais |
 | `desfazerNotificacao` | Notificações não possuem fluxo de remoção |
-
-### Por que o Redo não foi implementado
-
-O Redo exigiria uma classe de auditoria persistida no banco para que as ações pudessem ser refeitas entre sessões. Essa classe não fazia parte do enunciado do trabalho. Uma pilha em memória seria viável tecnicamente, mas não sobreviveria ao encerramento da aplicação — o que quebraria a consistência de um sistema inteiramente baseado em persistência com JPA. Para manter a coerência do design, optou-se por não implementá-lo.
-
-### O que ficou de fora e por quê
-
-As operações `desfazerRemoverLivro` e `desfazerRemoverExemplar` não foram implementadas. A solução correta seria soft delete — marcar registros como inativos ao invés de excluí-los fisicamente — o que permitiria restaurá-los pelo undo. No entanto, adotar soft delete exigiria revisitar todas as queries JPQL do sistema para filtrar registros inativos. Para compensar, o sistema aplica validações preventivas que bloqueiam a remoção de registros com vínculos ativos, garantindo integridade sem erros ou exceções.
