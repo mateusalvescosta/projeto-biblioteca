@@ -61,6 +61,12 @@ public class UndoRedoServiceTest {
         @Mock
         private TypedQuery<Long> queryDeContagemDeReserva;
 
+        @Mock
+        private TypedQuery<Long> queryDeContagemDeNotificacao;
+
+        @Mock
+        private TypedQuery<Long> queryDeContagemDeMulta;
+
         private UndoRedoService undoRedoService;
 
         @BeforeEach
@@ -289,10 +295,6 @@ public class UndoRedoServiceTest {
                 verify(entityManager).remove(multaAssociada);
         }
 
-        // =====================================================================
-        // desfazerCadastroUsuario
-        // =====================================================================
-
         @Test
         @DisplayName("Não deve remover usuário quando não há nenhum cadastrado no banco")
         void naoDeveRemoverUsuarioQuandoNaoHaNenhumCadastradoNoBanco() {
@@ -328,12 +330,37 @@ public class UndoRedoServiceTest {
                 when(queryDeContagemDeEmprestimo.setParameter("id", 10L)).thenReturn(queryDeContagemDeEmprestimo);
                 when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(2L);
 
-                lenient().when(entityManager.createQuery(
-                                "SELECT COUNT(r) FROM Reserva r " +
-                                                "WHERE r.usuarioId = :id " +
-                                                "AND r.status = 'RESERVADO'",
+                undoRedoService.desfazerCadastroUsuario();
+
+                verify(entityManager, never()).remove(any());
+        }
+
+        @Test
+        @DisplayName("Não deve remover usuário quando ele possui notificações vinculadas")
+        void naoDeveRemoverUsuarioQuandoElePossuiNotificacoesVinculadas() {
+                Usuario ultimoUsuario = Usuario.builder().id(10L).nome("Ana").build();
+
+                when(entityManager.createQuery(
+                                "SELECT u FROM Usuario u ORDER BY u.id DESC",
+                                Usuario.class))
+                                .thenReturn(queryDeUsuario);
+                when(queryDeUsuario.setMaxResults(1)).thenReturn(queryDeUsuario);
+                when(queryDeUsuario.getResultList()).thenReturn(List.of(ultimoUsuario));
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.usuario.id = :id " +
+                                                "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
                                 Long.class))
-                                .thenReturn(queryDeContagemDeReserva);
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("id", 10L)).thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(n) FROM Notificacao n WHERE n.usuarioId = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.setParameter("id", 10L)).thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.getSingleResult()).thenReturn(1L);
 
                 undoRedoService.desfazerCadastroUsuario();
 
@@ -341,8 +368,8 @@ public class UndoRedoServiceTest {
         }
 
         @Test
-        @DisplayName("Não deve remover usuário quando ele possui reservas pendentes")
-        void naoDeveRemoverUsuarioQuandoElePossuiReservasPendentes() {
+        @DisplayName("Não deve remover usuário quando ele possui reservas vinculadas")
+        void naoDeveRemoverUsuarioQuandoElePossuiReservasVinculadas() {
                 Usuario ultimoUsuario = Usuario.builder().id(10L).nome("Maria").build();
 
                 when(entityManager.createQuery(
@@ -361,9 +388,14 @@ public class UndoRedoServiceTest {
                 when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
 
                 when(entityManager.createQuery(
-                                "SELECT COUNT(r) FROM Reserva r " +
-                                                "WHERE r.usuarioId = :id " +
-                                                "AND r.status = 'RESERVADO'",
+                                "SELECT COUNT(n) FROM Notificacao n WHERE n.usuarioId = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.setParameter("id", 10L)).thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.usuarioId = :id",
                                 Long.class))
                                 .thenReturn(queryDeContagemDeReserva);
                 when(queryDeContagemDeReserva.setParameter("id", 10L)).thenReturn(queryDeContagemDeReserva);
@@ -375,8 +407,57 @@ public class UndoRedoServiceTest {
         }
 
         @Test
-        @DisplayName("Deve remover usuário quando ele não possui empréstimos nem reservas pendentes")
-        void deveRemoverUsuarioQuandoEleNaoPossuiEmprestimosNemReservasPendentes() {
+        @DisplayName("Não deve remover usuário quando ele possui multas vinculadas")
+        void naoDeveRemoverUsuarioQuandoElePossuiMultasVinculadas() {
+                Usuario ultimoUsuario = Usuario.builder().id(10L).nome("Pedro").build();
+
+                when(entityManager.createQuery(
+                                "SELECT u FROM Usuario u ORDER BY u.id DESC",
+                                Usuario.class))
+                                .thenReturn(queryDeUsuario);
+                when(queryDeUsuario.setMaxResults(1)).thenReturn(queryDeUsuario);
+                when(queryDeUsuario.getResultList()).thenReturn(List.of(ultimoUsuario));
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Emprestimo e WHERE e.usuario.id = :id " +
+                                                "AND (e.status = 'ATIVO' OR e.status = 'RENOVADO')",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.setParameter("id", 10L)).thenReturn(queryDeContagemDeEmprestimo);
+                when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(n) FROM Notificacao n WHERE n.usuarioId = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.setParameter("id", 10L)).thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.usuarioId = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.setParameter("id", 10L)).thenReturn(queryDeContagemDeReserva);
+                when(queryDeContagemDeReserva.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(m) FROM Multa m " +
+                                                "WHERE m.emprestimoId IN (" +
+                                                "    SELECT e.id FROM Emprestimo e WHERE e.usuario.id = :id" +
+                                                ")",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeMulta);
+                when(queryDeContagemDeMulta.setParameter("id", 10L)).thenReturn(queryDeContagemDeMulta);
+                when(queryDeContagemDeMulta.getSingleResult()).thenReturn(1L);
+
+                undoRedoService.desfazerCadastroUsuario();
+
+                verify(entityManager, never()).remove(any());
+        }
+
+        @Test
+        @DisplayName("Deve remover usuário quando ele não possui nenhum vínculo")
+        void deveRemoverUsuarioQuandoEleNaoPossuiNenhumVinculo() {
                 Usuario ultimoUsuario = Usuario.builder().id(10L).nome("Carlos").build();
 
                 when(entityManager.createQuery(
@@ -395,13 +476,28 @@ public class UndoRedoServiceTest {
                 when(queryDeContagemDeEmprestimo.getSingleResult()).thenReturn(0L);
 
                 when(entityManager.createQuery(
-                                "SELECT COUNT(r) FROM Reserva r " +
-                                                "WHERE r.usuarioId = :id " +
-                                                "AND r.status = 'RESERVADO'",
+                                "SELECT COUNT(n) FROM Notificacao n WHERE n.usuarioId = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.setParameter("id", 10L)).thenReturn(queryDeContagemDeNotificacao);
+                when(queryDeContagemDeNotificacao.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(r) FROM Reserva r WHERE r.usuarioId = :id",
                                 Long.class))
                                 .thenReturn(queryDeContagemDeReserva);
                 when(queryDeContagemDeReserva.setParameter("id", 10L)).thenReturn(queryDeContagemDeReserva);
                 when(queryDeContagemDeReserva.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(m) FROM Multa m " +
+                                                "WHERE m.emprestimoId IN (" +
+                                                "    SELECT e.id FROM Emprestimo e WHERE e.usuario.id = :id" +
+                                                ")",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeMulta);
+                when(queryDeContagemDeMulta.setParameter("id", 10L)).thenReturn(queryDeContagemDeMulta);
+                when(queryDeContagemDeMulta.getSingleResult()).thenReturn(0L);
 
                 when(entityManager.merge(ultimoUsuario)).thenReturn(ultimoUsuario);
 

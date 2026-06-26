@@ -30,16 +30,18 @@ public final class CatalogoMenu {
             opcao = MenuUtil.lerInteiro(this.scanner, "Escolha uma opção: ");
 
             switch (opcao) {
-                case 1 -> cadastrarLivro(catalogoService);
-                case 2 -> cadastrarExemplar(catalogoService);
-                case 3 -> removerLivro(catalogoService);
-                case 4 -> removerExemplar(catalogoService);
-                case 5 -> atualizarAutor(catalogoService);
-                case 6 -> buscarLivroPorIsbn(catalogoService);
-                case 7 -> buscarLivroPorTitulo(catalogoService);
-                case 8 -> buscarAutoresPorNome(catalogoService);
-                case 9 -> listarLivros(catalogoService);
-                case 10 -> listarExemplares(catalogoService);
+                case 1 -> cadastrarAutor(catalogoService);
+                case 2 -> cadastrarLivro(catalogoService);
+                case 3 -> cadastrarExemplar(catalogoService);
+                case 4 -> removerLivro(catalogoService);
+                case 5 -> removerExemplar(catalogoService);
+                case 6 -> removerAutor(catalogoService);
+                case 7 -> atualizarAutor(catalogoService);
+                case 8 -> buscarLivroPorIsbn(catalogoService);
+                case 9 -> buscarLivroPorTitulo(catalogoService);
+                case 10 -> buscarAutoresPorNome(catalogoService);
+                case 11 -> listarLivros(catalogoService);
+                case 12 -> listarExemplares(catalogoService);
                 case 100 -> System.out.println("Voltando para o menu principal...");
                 default -> System.out.println("Opção inválida. Tente novamente.");
             }
@@ -51,18 +53,43 @@ public final class CatalogoMenu {
     // Exibe as opções disponíveis no menu do catálogo
     private static void exibirMenu() {
         System.out.println("--------------- MENU ----------------");
-        System.out.println("1 - Cadastrar livro");
-        System.out.println("2 - Cadastrar exemplar");
-        System.out.println("3 - Remover livro");
-        System.out.println("4 - Remover exemplar");
-        System.out.println("5 - Atualizar autor");
-        System.out.println("6 - Buscar livro por ISBN");
-        System.out.println("7 - Buscar livro por título");
-        System.out.println("8 - Buscar autor por nome");
-        System.out.println("9 - Listar todos os livros");
-        System.out.println("10 - Listar exemplares de um livro");
+        System.out.println("1 - Cadastrar autor");
+        System.out.println("2 - Cadastrar livro");
+        System.out.println("3 - Cadastrar exemplar");
+        System.out.println("4 - Remover livro");
+        System.out.println("5 - Remover exemplar");
+        System.out.println("6 - Remover autor");
+        System.out.println("7 - Atualizar autor");
+        System.out.println("8 - Buscar livro por ISBN");
+        System.out.println("9 - Buscar livro por título");
+        System.out.println("10 - Buscar autor por nome");
+        System.out.println("11 - Listar todos os livros");
+        System.out.println("12 - Listar exemplares de um livro");
         System.out.println("100 - Voltar");
         System.out.println("-------------------------------------");
+    }
+
+    // Coleta o ID do autor e solicita confirmação antes de removê-lo
+    private void removerAutor(CatalogoService catalogoService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== REMOVER AUTOR ===");
+        Long id = MenuUtil.lerLong(this.scanner, "Informe o ID do autor a ser removido: ");
+
+        // Solicita confirmação do usuário antes de remover
+        String confirmacao = MenuUtil.lerTexto(this.scanner, "Deseja realmente remover este autor? (S/N): ");
+        if (confirmacao.equalsIgnoreCase("S")) {
+            catalogoService.removerAutor(id);
+        } else {
+            System.out.println("Remoção cancelada.");
+        }
+    }
+
+    // Coleta o nome do autor e aciona o cadastro
+    private void cadastrarAutor(CatalogoService catalogoService) {
+        MenuUtil.limparConsole();
+        System.out.println("=== CADASTRAR AUTOR ===");
+        String nomeAutor = MenuUtil.lerTexto(this.scanner, "Informe o nome do autor: ");
+        catalogoService.cadastrarAutor(nomeAutor);
     }
 
     // Coleta os dados do livro, autor e categoria e aciona o cadastro
@@ -74,7 +101,8 @@ public final class CatalogoMenu {
         String recebeAno = MenuUtil.lerTexto(this.scanner,
                 "Informe o ano de publicação (AAAA-MM-DD) ou deixe em branco: ");
 
-        // Tenta converter o ano informado, ignorando o campo em caso de formato inválido
+        // Tenta converter o ano informado, ignorando o campo em caso de formato
+        // inválido
         LocalDate ano = null;
         if (!recebeAno.isBlank()) {
             try {
