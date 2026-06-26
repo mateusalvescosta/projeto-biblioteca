@@ -156,9 +156,9 @@ public class ReservaService {
             System.out.println("-------------------------------------");
             System.out.println("Próximo da fila:");
             System.out.println("ID:              " + proximaReserva.getId());
-            System.out.println("Usuário:         " + (usuario != null ? usuario.getNome() : "Não encontrado"));
-            System.out.println("E-mail:          " + (usuario != null ? usuario.getEmail() : "Não encontrado"));
-            System.out.println("Livro:           " + (livro != null ? livro.getTitulo() : "Não encontrado"));
+            System.out.println("Usuário:         " + usuario.getNome());
+            System.out.println("E-mail:          " + usuario.getEmail());
+            System.out.println("Livro:           " + livro.getTitulo());
             System.out.println("Data da reserva: " + proximaReserva.getDataReserva());
             System.out.println("-------------------------------------");
 

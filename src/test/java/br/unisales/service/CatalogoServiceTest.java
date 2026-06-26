@@ -65,6 +65,12 @@ public class CatalogoServiceTest {
         private TypedQuery<Long> queryDeContagemDeReserva;
 
         @Mock
+        private TypedQuery<Long> queryDeContagemDeExemplar;
+
+        @Mock
+        private TypedQuery<Long> queryDeContagemDeLivroAutor;
+
+        @Mock
         private TypedQuery<Long> queryDeMaximoId;
 
         private CatalogoService catalogoService;
@@ -74,6 +80,47 @@ public class CatalogoServiceTest {
                 when(entityManagerFactory.createEntityManager()).thenReturn(entityManager);
                 lenient().when(entityManager.getTransaction()).thenReturn(entityTransaction);
                 catalogoService = new CatalogoService(entityManagerFactory);
+        }
+
+        // =====================================================================
+        // cadastrarAutor
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve persistir autor quando já existe um com o mesmo nome")
+        void naoDevePersistirAutorQuandoJaExisteComMesmoNome() {
+                Autor autorJaExistente = Autor.builder().id(10L).nome("Autor Existente").build();
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Existente")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(List.of(autorJaExistente));
+
+                catalogoService.cadastrarAutor("Autor Existente");
+
+                verify(entityManager, never()).persist(any(Autor.class));
+        }
+
+        @Test
+        @DisplayName("Deve persistir novo autor com id e nome corretos quando nome não está cadastrado")
+        void devePersistirNovoAutorComIdENomeCorretosQuandoNomeNaoEstaCadastrado() {
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Novo")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
+
+                when(entityManager.createQuery("SELECT MAX(a.id) FROM Autor a", Long.class))
+                                .thenReturn(queryDeMaximoId);
+                when(queryDeMaximoId.getSingleResult()).thenReturn(5L);
+
+                catalogoService.cadastrarAutor("Autor Novo");
+
+                // Verifica que o autor persistido tem o próximo id (5 + 1) e o nome correto
+                verify(entityManager).persist(Autor.builder().id(6L).nome("Autor Novo").build());
         }
 
         // =====================================================================
@@ -94,11 +141,38 @@ public class CatalogoServiceTest {
         }
 
         @Test
-        @DisplayName("Não deve persistir livro quando categoria informada não existe no banco")
-        void naoDevePersistirLivroQuandoCategoriaNaoExisteNoBanco() {
-                Livro novoLivro = Livro.builder().isbn("978-2222").titulo("Livro Sem Categoria").build();
+        @DisplayName("Não deve persistir livro quando autor informado não existe no banco")
+        void naoDevePersistirLivroQuandoAutorNaoExisteNoBanco() {
+                Livro novoLivro = Livro.builder().isbn("978-2222").titulo("Livro Sem Autor").build();
 
                 when(entityManager.find(Livro.class, "978-2222")).thenReturn(null);
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Inexistente")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
+
+                catalogoService.cadastrarLivro(novoLivro, "Autor Inexistente", "Qualquer Categoria");
+
+                verify(entityManager, never()).persist(novoLivro);
+        }
+
+        @Test
+        @DisplayName("Não deve persistir livro quando categoria informada não existe no banco")
+        void naoDevePersistirLivroQuandoCategoriaNaoExisteNoBanco() {
+                Livro novoLivro = Livro.builder().isbn("978-3333").titulo("Livro Sem Categoria").build();
+                Autor autorExistente = Autor.builder().id(10L).nome("Autor Existente").build();
+
+                when(entityManager.find(Livro.class, "978-3333")).thenReturn(null);
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Autor Existente")).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(List.of(autorExistente));
 
                 when(entityManager.createQuery(
                                 "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
@@ -107,58 +181,19 @@ public class CatalogoServiceTest {
                 when(queryDeCategoria.setParameter("nome", "Categoria Inexistente")).thenReturn(queryDeCategoria);
                 when(queryDeCategoria.getResultList()).thenReturn(Collections.emptyList());
 
-                catalogoService.cadastrarLivro(novoLivro, "Qualquer Autor", "Categoria Inexistente");
+                catalogoService.cadastrarLivro(novoLivro, "Autor Existente", "Categoria Inexistente");
 
                 verify(entityManager, never()).persist(novoLivro);
         }
 
         @Test
-        @DisplayName("Deve criar autor novo e persistir livro quando autor não existe no banco")
-        void deveCriarAutorNovoEPersistirLivroQuandoAutorNaoExisteNoBanco() {
-                Livro novoLivro = Livro.builder().isbn("978-3333").titulo("Livro Com Autor Novo").build();
-                Categoria categoriaExistente = Categoria.builder().id(1L).nome("Tecnologia").build();
-
-                when(entityManager.find(Livro.class, "978-3333")).thenReturn(null);
-
-                when(entityManager.createQuery(
-                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
-                                Categoria.class))
-                                .thenReturn(queryDeCategoria);
-                when(queryDeCategoria.setParameter("nome", "Tecnologia")).thenReturn(queryDeCategoria);
-                when(queryDeCategoria.getResultList()).thenReturn(List.of(categoriaExistente));
-
-                when(entityManager.createQuery(
-                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
-                                Autor.class))
-                                .thenReturn(queryDeAutor);
-                when(queryDeAutor.setParameter("nome", "Autor Novo")).thenReturn(queryDeAutor);
-                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
-
-                when(entityManager.createQuery("SELECT MAX(a.id) FROM Autor a", Long.class))
-                                .thenReturn(queryDeMaximoId);
-                when(queryDeMaximoId.getSingleResult()).thenReturn(5L);
-
-                catalogoService.cadastrarLivro(novoLivro, "Autor Novo", "Tecnologia");
-
-                verify(entityManager, atLeastOnce()).persist(novoLivro);
-                verify(entityManager, atLeastOnce()).persist(any(Autor.class));
-        }
-
-        @Test
-        @DisplayName("Deve reutilizar autor existente e persistir livro quando autor já está cadastrado")
-        void deveReutilizarAutorExistenteEPersistirLivroQuandoAutorJaEstaCadastrado() {
+        @DisplayName("Deve persistir livro e associações quando autor e categoria já existem")
+        void devePersistirLivroEAssociacoesQuandoAutorECategoriaJaExistem() {
                 Livro novoLivro = Livro.builder().isbn("978-4444").titulo("Livro Com Autor Existente").build();
-                Categoria categoriaExistente = Categoria.builder().id(2L).nome("Ficção").build();
                 Autor autorJaExistente = Autor.builder().id(10L).nome("Autor Existente").build();
+                Categoria categoriaExistente = Categoria.builder().id(2L).nome("Ficção").build();
 
                 when(entityManager.find(Livro.class, "978-4444")).thenReturn(null);
-
-                when(entityManager.createQuery(
-                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
-                                Categoria.class))
-                                .thenReturn(queryDeCategoria);
-                when(queryDeCategoria.setParameter("nome", "Ficção")).thenReturn(queryDeCategoria);
-                when(queryDeCategoria.getResultList()).thenReturn(List.of(categoriaExistente));
 
                 when(entityManager.createQuery(
                                 "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome)",
@@ -166,6 +201,13 @@ public class CatalogoServiceTest {
                                 .thenReturn(queryDeAutor);
                 when(queryDeAutor.setParameter("nome", "Autor Existente")).thenReturn(queryDeAutor);
                 when(queryDeAutor.getResultList()).thenReturn(List.of(autorJaExistente));
+
+                when(entityManager.createQuery(
+                                "SELECT c FROM Categoria c WHERE LOWER(c.nome) = LOWER(:nome)",
+                                Categoria.class))
+                                .thenReturn(queryDeCategoria);
+                when(queryDeCategoria.setParameter("nome", "Ficção")).thenReturn(queryDeCategoria);
+                when(queryDeCategoria.getResultList()).thenReturn(List.of(categoriaExistente));
 
                 catalogoService.cadastrarLivro(novoLivro, "Autor Existente", "Ficção");
 
@@ -208,11 +250,39 @@ public class CatalogoServiceTest {
         }
 
         @Test
+        @DisplayName("Não deve remover livro quando possui exemplares cadastrados")
+        void naoDeveRemoverLivroQuandoPossuiExemplaresCadastrados() {
+                Livro livroComExemplares = Livro.builder().isbn("978-1234").titulo("Livro Com Exemplares").build();
+
+                when(entityManager.find(Livro.class, "978-1234")).thenReturn(livroComExemplares);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Exemplar e WHERE e.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.getSingleResult()).thenReturn(2L);
+
+                catalogoService.removerLivro("978-1234");
+
+                verify(entityManager, never()).remove(livroComExemplares);
+        }
+
+        @Test
         @DisplayName("Não deve remover livro quando existe histórico de empréstimos vinculado")
         void naoDeveRemoverLivroQuandoExisteHistoricoDeEmprestimosVinculado() {
                 Livro livroComHistorico = Livro.builder().isbn("978-1234").titulo("Livro Com Histórico").build();
 
                 when(entityManager.find(Livro.class, "978-1234")).thenReturn(livroComHistorico);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Exemplar e WHERE e.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.getSingleResult()).thenReturn(0L);
 
                 when(entityManager.createQuery(
                                 "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
@@ -240,6 +310,14 @@ public class CatalogoServiceTest {
                 when(entityManager.find(Livro.class, "978-1234")).thenReturn(livroComReservas);
 
                 when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Exemplar e WHERE e.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.setParameter("isbn", "978-1234"))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.getSingleResult()).thenReturn(0L);
+
+                when(entityManager.createQuery(
                                 "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
                                 Long.class))
                                 .thenReturn(queryDeContagemDeEmprestimo);
@@ -261,11 +339,19 @@ public class CatalogoServiceTest {
         }
 
         @Test
-        @DisplayName("Deve remover livro quando não há empréstimos nem reservas pendentes")
-        void deveRemoverLivroQuandoNaoHaEmprestimosNemReservasPendentes() {
+        @DisplayName("Deve remover livro quando não há exemplares, empréstimos nem reservas pendentes")
+        void deveRemoverLivroQuandoNaoHaExemplaresEmprestimosNemReservasPendentes() {
                 Livro livroSemVinculos = Livro.builder().isbn("978-9876").titulo("Livro Sem Vínculos").build();
 
                 when(entityManager.find(Livro.class, "978-9876")).thenReturn(livroSemVinculos);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(e) FROM Exemplar e WHERE e.livro.isbn = :isbn",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.setParameter("isbn", "978-9876"))
+                                .thenReturn(queryDeContagemDeExemplar);
+                when(queryDeContagemDeExemplar.getSingleResult()).thenReturn(0L);
 
                 when(entityManager.createQuery(
                                 "SELECT COUNT(e) FROM Emprestimo e WHERE e.exemplar.livro.isbn = :isbn",
@@ -383,6 +469,60 @@ public class CatalogoServiceTest {
                 catalogoService.removerExemplar(2L);
 
                 verify(entityManager).remove(exemplarSemVinculos);
+        }
+
+        // =====================================================================
+        // removerAutor
+        // =====================================================================
+
+        @Test
+        @DisplayName("Não deve remover autor quando ID não corresponde a nenhum registro")
+        void naoDeveRemoverAutorQuandoIdNaoCorrespondeANenhumRegistro() {
+                when(entityManager.find(Autor.class, 1L)).thenReturn(null);
+
+                catalogoService.removerAutor(1L);
+
+                verify(entityManager, never()).remove(any());
+        }
+
+        @Test
+        @DisplayName("Não deve remover autor quando possui livros vinculados")
+        void naoDeveRemoverAutorQuandoPossuiLivrosVinculados() {
+                Autor autorComVinculos = Autor.builder().id(1L).nome("Autor Com Vínculos").build();
+
+                when(entityManager.find(Autor.class, 1L)).thenReturn(autorComVinculos);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(la) FROM LivroAutor la WHERE la.autor.id = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeLivroAutor);
+                when(queryDeContagemDeLivroAutor.setParameter("id", 1L))
+                                .thenReturn(queryDeContagemDeLivroAutor);
+                when(queryDeContagemDeLivroAutor.getSingleResult()).thenReturn(2L);
+
+                catalogoService.removerAutor(1L);
+
+                verify(entityManager, never()).remove(autorComVinculos);
+        }
+
+        @Test
+        @DisplayName("Deve remover autor quando não possui livros vinculados")
+        void deveRemoverAutorQuandoNaoPossuiLivrosVinculados() {
+                Autor autorSemVinculos = Autor.builder().id(2L).nome("Autor Sem Vínculos").build();
+
+                when(entityManager.find(Autor.class, 2L)).thenReturn(autorSemVinculos);
+
+                when(entityManager.createQuery(
+                                "SELECT COUNT(la) FROM LivroAutor la WHERE la.autor.id = :id",
+                                Long.class))
+                                .thenReturn(queryDeContagemDeLivroAutor);
+                when(queryDeContagemDeLivroAutor.setParameter("id", 2L))
+                                .thenReturn(queryDeContagemDeLivroAutor);
+                when(queryDeContagemDeLivroAutor.getSingleResult()).thenReturn(0L);
+
+                catalogoService.removerAutor(2L);
+
+                verify(entityManager).remove(autorSemVinculos);
         }
 
         // =====================================================================
@@ -613,11 +753,41 @@ public class CatalogoServiceTest {
         }
 
         @Test
-        @DisplayName("Deve atualizar o nome do autor quando ele existe no banco")
-        void deveAtualizarNomeDoAutorQuandoEleExisteNoBanco() {
+        @DisplayName("Não deve atualizar autor quando já existe outro com o mesmo nome")
+        void naoDeveAtualizarAutorQuandoJaExisteOutroComMesmoNome() {
+                Autor autorExistente = Autor.builder().id(1L).nome("Nome Antigo").build();
+                Autor outroAutor = Autor.builder().id(2L).nome("Nome Novo").build();
+
+                when(entityManager.find(Autor.class, 1L)).thenReturn(autorExistente);
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome) AND a.id <> :id",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Nome Novo")).thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("id", 1L)).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(List.of(outroAutor));
+
+                catalogoService.atualizarAutor(1L, "Nome Novo");
+
+                verify(entityManager, never()).merge(any(Autor.class));
+                verify(entityTransaction, never()).begin();
+        }
+
+        @Test
+        @DisplayName("Deve atualizar o nome do autor quando ele existe e o nome não está em uso")
+        void deveAtualizarNomeDoAutorQuandoEleExisteENomeNaoEstaEmUso() {
                 Autor autorExistente = Autor.builder().id(1L).nome("Nome Antigo").build();
 
                 when(entityManager.find(Autor.class, 1L)).thenReturn(autorExistente);
+
+                when(entityManager.createQuery(
+                                "SELECT a FROM Autor a WHERE LOWER(a.nome) = LOWER(:nome) AND a.id <> :id",
+                                Autor.class))
+                                .thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("nome", "Nome Novo")).thenReturn(queryDeAutor);
+                when(queryDeAutor.setParameter("id", 1L)).thenReturn(queryDeAutor);
+                when(queryDeAutor.getResultList()).thenReturn(Collections.emptyList());
 
                 catalogoService.atualizarAutor(1L, "Nome Novo");
 

@@ -152,17 +152,43 @@ public class UndoRedoService {
                 return;
             }
 
-            // Valida se o usuário não possui reservas pendentes
-            Long reservasPendentes = entityManager.createQuery(
-                    "SELECT COUNT(r) FROM Reserva r " +
-                            "WHERE r.usuarioId = :id " +
-                            "AND r.status = 'RESERVADO'",
+            // Valida se o usuário não possui notificações vinculadas
+            Long notificacoesVinculadas = entityManager.createQuery(
+                    "SELECT COUNT(n) FROM Notificacao n WHERE n.usuarioId = :id",
                     Long.class)
                     .setParameter("id", ultimoUsuario.getId())
                     .getSingleResult();
 
-            if (reservasPendentes > 0) {
-                System.out.println("Não é possível desfazer: usuário possui reservas pendentes.");
+            if (notificacoesVinculadas > 0) {
+                System.out.println("Não é possível desfazer: usuário possui notificações vinculadas.");
+                return;
+            }
+
+            // Valida se o usuário não possui qualquer reserva (pendente ou histórico)
+            Long reservasVinculadas = entityManager.createQuery(
+                    "SELECT COUNT(r) FROM Reserva r WHERE r.usuarioId = :id",
+                    Long.class)
+                    .setParameter("id", ultimoUsuario.getId())
+                    .getSingleResult();
+
+            if (reservasVinculadas > 0) {
+                System.out.println(
+                        "Não é possível desfazer: usuário possui reservas pendentes ou histórico de reservas.");
+                return;
+            }
+
+            // Valida se o usuário não possui multas vinculadas aos seus empréstimos
+            Long multasVinculadas = entityManager.createQuery(
+                    "SELECT COUNT(m) FROM Multa m " +
+                            "WHERE m.emprestimoId IN (" +
+                            "    SELECT e.id FROM Emprestimo e WHERE e.usuario.id = :id" +
+                            ")",
+                    Long.class)
+                    .setParameter("id", ultimoUsuario.getId())
+                    .getSingleResult();
+
+            if (multasVinculadas > 0) {
+                System.out.println("Não é possível desfazer: usuário possui multas vinculadas.");
                 return;
             }
 
